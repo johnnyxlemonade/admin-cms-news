@@ -11,6 +11,10 @@
     {
       "type": "vcs",
       "url": "https://github.com/johnnyxlemonade/admin-platform"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/johnnyxlemonade/admin-image"
     }
   ],
   "require": {
