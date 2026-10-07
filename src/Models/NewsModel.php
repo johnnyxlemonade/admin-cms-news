@@ -276,38 +276,6 @@ final class NewsModel extends Model
     }
 
     /**
-     * Skryje vsechny canonical routy smazaneho aggregate bez uvolneni URL
-     */
-    public function softDeleteRoutes(int $articleId, string $now): void
-    {
-        $this->routes()
-            ->where('module_code', 'cms.news')
-            ->where('entity_id', $articleId)
-            ->where('deleted_at', null)
-            ->set([
-                'deleted_at' => $now,
-                'updated_at' => $now,
-            ])
-            ->update();
-    }
-
-    /**
-     * Znovu aktivuje rezervovane canonical routy obnoveneho aggregate
-     */
-    public function restoreRoutes(int $articleId, string $now): void
-    {
-        $this->routes()
-            ->where('module_code', 'cms.news')
-            ->where('entity_id', $articleId)
-            ->whereRaw('deleted_at IS NOT NULL')
-            ->set([
-                'deleted_at' => null,
-                'updated_at' => $now,
-            ])
-            ->update();
-    }
-
-    /**
      * Vrati publication metadata clanku
      *
      * @return array<string,mixed>|null
@@ -531,14 +499,5 @@ final class NewsModel extends Model
     {
         return QueryBuilder::make($this->db)
             ->table('cms_news_article_translation_tag');
-    }
-
-    /**
-     * Vrati query builder nad canonical CMS routami
-     */
-    private function routes(): QueryBuilder
-    {
-        return QueryBuilder::make($this->db)
-            ->table('cms_route');
     }
 }

@@ -15,10 +15,15 @@
     {
       "type": "vcs",
       "url": "https://github.com/johnnyxlemonade/admin-image"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/johnnyxlemonade/cms-core"
     }
   ],
   "require": {
     "php": ">=8.3 <8.6",
+    "johnnyxlemonade/cms-core": "dev-main",
     "johnnyxlemonade/framework": "dev-master",
     "johnnyxlemonade/admin-platform": "dev-main",
     "psr/http-message": "^2.0"

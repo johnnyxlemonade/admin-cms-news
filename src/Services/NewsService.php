@@ -7,13 +7,13 @@ namespace Lemonade\Cms\News\Services;
 use Lemonade\Admin\Audit\AuditActor;
 use Lemonade\Admin\Audit\AuditOperation;
 use Lemonade\Admin\Authorization\AuthorizationService;
-use Lemonade\Admin\Cms\Routing\CmsRouteReservationService;
-use Lemonade\Admin\Cms\Routing\PublicModuleRoutePrefixRepositoryInterface;
 use Lemonade\Admin\Event\DomainEvent;
 use Lemonade\Admin\Event\TransactionalEventCollector;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Cms\News\Models\NewsModel;
+use Lemonade\Cms\Routing\CmsRouteReservationService;
+use Lemonade\Cms\Routing\PublicModuleRoutePrefixRepositoryInterface;
 use Lemonade\Framework\Support\Slug\Slugger;
 use RuntimeException;
 
@@ -213,7 +213,7 @@ final class NewsService
         $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId): void {
             $now = date('Y-m-d H:i:s');
             $this->news->softDelete($articleId, $now);
-            $this->news->softDeleteRoutes($articleId, $now);
+            $this->routes->softDeleteForTarget('cms.news', $articleId, $now);
             $events->record(new DomainEvent(
                 code: 'cms.news.deleted',
                 moduleCode: 'cms.news',
@@ -244,7 +244,7 @@ final class NewsService
         $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId): void {
             $now = date('Y-m-d H:i:s');
             $this->news->restoreDraft($articleId, $now);
-            $this->news->restoreRoutes($articleId, $now);
+            $this->routes->restoreForTarget('cms.news', $articleId, $now);
             $events->record(new DomainEvent(
                 code: 'cms.news.restored',
                 moduleCode: 'cms.news',
