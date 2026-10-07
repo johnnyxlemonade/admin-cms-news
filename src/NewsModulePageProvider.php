@@ -14,6 +14,7 @@ use Lemonade\Admin\Editor\AdminEditor\AdminEditorRenderContext;
 use Lemonade\Admin\Editor\EditorLoaded;
 use Lemonade\Admin\Editor\Exception\EditorEntityNotFoundException;
 use Lemonade\Admin\Icon\AdminIcon;
+use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Page\Contract\ModuleEditorPageProviderInterface;
 use Lemonade\Admin\Page\Contract\ModuleIndexPageProviderInterface;
 use Lemonade\Admin\Page\Contract\ModuleModalEditorPageProviderInterface;
@@ -37,6 +38,7 @@ final class NewsModulePageProvider implements ModuleIndexPageProviderInterface, 
         private readonly AuthorizationService $authorization,
         private readonly TranslatorInterface $translator,
         private readonly UrlGenerator $urls,
+        private readonly AdminModuleRouteResolver $routes,
         private readonly NewsAdminEditorDefinitionFactory $adminEditorDefinitions,
         private readonly AdminFileUploadComponent $files,
     ) {}
@@ -275,7 +277,7 @@ final class NewsModulePageProvider implements ModuleIndexPageProviderInterface, 
             $items[] = new AdminEditorHeaderContextItem(
                 label: (string) $locale['name'],
                 href: $this->urls->route(
-                    name: $mode === 'create' ? 'admin.module.create' : 'admin.module.edit',
+                    name: $this->routes->managementRouteName('news', $mode === 'create' ? 'create' : 'edit'),
                     params: $mode === 'create'
                         ? ['module' => 'news', 'locale' => $code]
                         : ['module' => 'news', 'id' => $articleId, 'locale' => $code],

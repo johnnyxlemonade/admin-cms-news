@@ -13,6 +13,7 @@ use Lemonade\Admin\Editor\Exception\EditorEntityNotFoundException;
 use Lemonade\Admin\Editor\Exception\EditorValidationException;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
+use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Routing\UrlGenerator;
@@ -32,6 +33,7 @@ final class NewsEditor implements EditorProviderInterface
         private readonly LanguageRegistry $languages,
         private readonly LocalActorGuard $actors,
         private readonly NewsEditorValidationSchema $validation,
+        private readonly AdminModuleRouteResolver $routes,
         private readonly UrlGenerator $urls,
     ) {}
 
@@ -200,7 +202,7 @@ final class NewsEditor implements EditorProviderInterface
     private function editUrl(int $articleId, string $locale): string
     {
         return $this->urls->route(
-            'admin.module.edit',
+            $this->routes->managementRouteName('news', 'edit'),
             ['module' => 'news', 'id' => $articleId, 'locale' => $locale],
         );
     }

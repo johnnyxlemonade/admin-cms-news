@@ -19,6 +19,7 @@ use Lemonade\Admin\DataGrid\DataGridResult;
 use Lemonade\Admin\DataGrid\DataGridRowDefinition;
 use Lemonade\Admin\DataGrid\Query\DataGridQuery;
 use Lemonade\Admin\Icon\AdminIcon;
+use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Admin\Select\SelectOptionDefinition;
@@ -40,6 +41,7 @@ final class NewsDataGrid implements DataGridProviderInterface
         private readonly AuthorizationService $authorization,
         private readonly TranslatorInterface $translator,
         private readonly ModuleActionPresentationFactory $actionPresentation,
+        private readonly AdminModuleRouteResolver $routes,
         private readonly UrlGenerator $urls,
         private readonly AdminFileModel $files,
         private readonly AdminThumbnailComponent $thumbnails,
@@ -209,7 +211,10 @@ final class NewsDataGrid implements DataGridProviderInterface
      */
     private function editUrl(int $articleId, ?string $contentLocale = null): string
     {
-        $url = $this->urls->route('admin.module.edit', ['module' => 'news', 'id' => $articleId]);
+        $url = $this->urls->route(
+            $this->routes->managementRouteName('news', 'edit'),
+            ['module' => 'news', 'id' => $articleId],
+        );
 
         return $contentLocale === null ? $url : $url . '?locale=' . rawurlencode($contentLocale);
     }

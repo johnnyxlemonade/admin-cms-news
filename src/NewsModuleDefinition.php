@@ -32,7 +32,7 @@ final readonly class NewsModuleDefinition implements AdminModuleDefinitionInterf
             icon: AdminIcon::JournalText,
             navigationGroup: 'content',
             navigationOrder: 10,
-            destinationRoute: 'admin.module.index',
+            destinationRoute: 'admin.cms.module.index',
             routeSegment: 'news',
             destinationParameters: ['module' => 'news'],
             navigationPermission: 'cms.news.view',

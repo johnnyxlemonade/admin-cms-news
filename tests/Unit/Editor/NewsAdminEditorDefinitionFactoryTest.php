@@ -9,7 +9,14 @@ use Lemonade\Admin\Editor\AdminEditor\AdminEditorHeaderContextItem;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorRenderContext;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorRenderer;
 use Lemonade\Admin\Editor\AdminEditor\SectionBlock;
+use Lemonade\Admin\Icon\AdminIcon;
+use Lemonade\Admin\Module\AdminModuleRegistry;
+use Lemonade\Admin\Module\AdminModuleRouteResolver;
+use Lemonade\Admin\Modules\Registry\ModuleRegistry;
+use Lemonade\Admin\Navigation\AdminNavigationGroupDefinition;
+use Lemonade\Admin\Navigation\AdminNavigationGroupRegistry;
 use Lemonade\Cms\News\Editor\NewsAdminEditorDefinitionFactory;
+use Lemonade\Cms\News\NewsModuleDefinition;
 use Lemonade\Framework\Routing\ControllerAction;
 use Lemonade\Framework\Routing\Router;
 use Lemonade\Framework\Routing\UrlGenerator;
@@ -26,10 +33,10 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
     public function testCreatesSingleLocaleEditorWithRichTextMarker(): void
     {
         $router = new Router();
-        $router->getNamed('admin.module.index', '/admin/{module}', ControllerAction::for('NewsController', 'index'));
-        $router->postNamed('admin.module.update', '/admin/{module}/edit/{id}', ControllerAction::for('NewsController', 'update'));
-        $router->postNamed('admin.module.ajax.entity', '/admin/{module}/ajax/{id}', ControllerAction::for('NewsController', 'save'));
-        $factory = new NewsAdminEditorDefinitionFactory(new UrlGenerator($router));
+        $router->getNamed('admin.cms.module.index', '/admin/cms/{module}', ControllerAction::for('NewsController', 'index'));
+        $router->postNamed('admin.cms.module.update', '/admin/cms/{module}/edit/{id}', ControllerAction::for('NewsController', 'update'));
+        $router->postNamed('admin.cms.module.ajax.entity', '/admin/cms/{module}/ajax/{id}', ControllerAction::for('NewsController', 'save'));
+        $factory = new NewsAdminEditorDefinitionFactory(new UrlGenerator($router), $this->routes());
 
         $editor = $factory->create(
             article: [
@@ -60,5 +67,21 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
         self::assertStringContainsString('data-lemonade-rich-text', $html);
         self::assertStringContainsString('name="locale" type="hidden"', $html);
         self::assertStringNotContainsString('lm-editor-header-context', $html);
+    }
+
+    /**
+     * Vraci resolver s canonical News Admin segmentem
+     */
+    private function routes(): AdminModuleRouteResolver
+    {
+        $groups = new AdminNavigationGroupRegistry();
+        $groups->register(new AdminNavigationGroupDefinition('content', 'admin.navigation.content', 40, AdminIcon::JournalText));
+        $definition = new NewsModuleDefinition();
+        $adminModules = new AdminModuleRegistry($groups);
+        $adminModules->register($definition);
+        $modules = new ModuleRegistry();
+        $modules->register($definition);
+
+        return new AdminModuleRouteResolver($adminModules, $modules);
     }
 }

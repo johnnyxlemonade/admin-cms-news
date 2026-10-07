@@ -21,6 +21,8 @@ final class NewsModuleDefinitionTest extends TestCase
 
         self::assertSame('cms.news', $definition->code());
         self::assertSame('news', $definition->adminMetadata()->routeSegment());
+        self::assertSame('admin.cms.module.index', $definition->adminMetadata()->destinationRoute());
+        self::assertSame(['module' => 'news'], $definition->adminMetadata()->destinationParameters());
         self::assertSame(['cms.news.view'], $definition->permissionDefinitions()[3]->requires());
     }
 }

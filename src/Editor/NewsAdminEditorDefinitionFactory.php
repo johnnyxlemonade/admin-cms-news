@@ -18,6 +18,7 @@ use Lemonade\Admin\Editor\AdminEditor\CustomViewBlock;
 use Lemonade\Admin\Editor\AdminEditor\FieldColumn;
 use Lemonade\Admin\Editor\AdminEditor\FieldGroupBlock;
 use Lemonade\Admin\Editor\AdminEditor\SectionBlock;
+use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Presentation\AdminFileUploadCollection;
 use Lemonade\Framework\Routing\UrlGenerator;
 
@@ -29,7 +30,10 @@ final class NewsAdminEditorDefinitionFactory
     /**
      * Nastavuje generator canonical Admin URL
      */
-    public function __construct(private readonly UrlGenerator $urls) {}
+    public function __construct(
+        private readonly UrlGenerator $urls,
+        private readonly AdminModuleRouteResolver $routes,
+    ) {}
 
     /**
      * Vytvori minimalni modal pro zalozeni pojmenovaneho News draftu
@@ -70,11 +74,11 @@ final class NewsAdminEditorDefinitionFactory
             ->form(new AdminEditorFormDefinition(
                 id: 'news-modal-create-form',
                 action: $this->urls->route(
-                    name: 'admin.module.store',
+                    name: $this->routes->managementRouteName('news', 'store'),
                     params: ['module' => 'news'],
                 ),
                 actionUrl: $this->urls->route(
-                    name: 'admin.module.ajax.create',
+                    name: $this->routes->managementRouteName('news', 'ajax.create'),
                     params: ['module' => 'news'],
                 ),
                 actionKey: 'create',
@@ -160,8 +164,8 @@ final class NewsAdminEditorDefinitionFactory
      */
     private function editorForm(bool $isCreate, ?int $articleId, string $contentLocale): AdminEditorFormDefinition
     {
-        $routeName = $isCreate ? 'admin.module.store' : 'admin.module.update';
-        $actionRouteName = $isCreate ? 'admin.module.ajax.create' : 'admin.module.ajax.entity';
+        $routeName = $this->routes->managementRouteName('news', $isCreate ? 'store' : 'update');
+        $actionRouteName = $this->routes->managementRouteName('news', $isCreate ? 'ajax.create' : 'ajax.entity');
         $routeParams = $isCreate
             ? ['module' => 'news', 'locale' => $contentLocale]
             : ['module' => 'news', 'id' => $articleId, 'locale' => $contentLocale];
@@ -182,7 +186,7 @@ final class NewsAdminEditorDefinitionFactory
     private function header(bool $isCreate, ?AdminEditorHeaderContextDefinition $context): AdminEditorHeaderDefinition
     {
         $indexUrl = $this->urls->route(
-            name: 'admin.module.index',
+            name: $this->routes->managementRouteName('news', 'index'),
             params: ['module' => 'news'],
         );
         $titleKey = $isCreate ? 'news.editor.create_title' : 'news.editor.title';
