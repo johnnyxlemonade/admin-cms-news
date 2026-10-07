@@ -13,8 +13,6 @@ return [
         'create_title' => 'New news',
         'content' => 'Content',
         'publication' => 'Publication',
-        'tags_search' => 'Search tags…',
-        'tags_empty' => 'No tags found',
         'locale' => ['label' => 'Content language', 'new_translation' => 'New translation', 'disabled' => 'Disabled language'],
         'tabs' => ['content' => 'Content', 'seo' => 'SEO', 'settings' => 'Settings'],
         'sections' => ['localized_content' => 'Content', 'content' => 'Article content', 'seo' => 'SEO settings', 'seo_help' => 'Control how this news item appears in search results.', 'recommendation' => 'Recommendation', 'display' => 'Display settings'],

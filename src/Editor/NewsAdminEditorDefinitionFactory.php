@@ -264,8 +264,6 @@ final class NewsAdminEditorDefinitionFactory
                                     ->attributes([
                                         'data-lemonade-searchable' => true,
                                         'data-lemonade-allow-create' => true,
-                                        'data-lemonade-search-placeholder-key' => 'news.editor.tags_search',
-                                        'data-lemonade-no-results-key' => 'news.editor.tags_empty',
                                     ])
                                     ->value($translation['tags'] ?? []),
                                 md: 12,
