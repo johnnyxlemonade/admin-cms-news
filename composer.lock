@@ -403,12 +403,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/johnnyxlemonade/admin-image.git",
-                "reference": "446df0bc2ca2849dd9f7957cd1adb68805f54eb9"
+                "reference": "671ed9fccec31b7b702afdd40a1da1244525db28"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/johnnyxlemonade/admin-image/zipball/446df0bc2ca2849dd9f7957cd1adb68805f54eb9",
-                "reference": "446df0bc2ca2849dd9f7957cd1adb68805f54eb9",
+                "url": "https://api.github.com/repos/johnnyxlemonade/admin-image/zipball/671ed9fccec31b7b702afdd40a1da1244525db28",
+                "reference": "671ed9fccec31b7b702afdd40a1da1244525db28",
                 "shasum": ""
             },
             "require": {
@@ -439,7 +439,7 @@
                 "issues": "https://github.com/johnnyxlemonade/admin-image/issues",
                 "source": "https://github.com/johnnyxlemonade/admin-image/tree/main"
             },
-            "time": "2026-10-06T17:14:47+00:00"
+            "time": "2026-10-07T17:09:12+00:00"
         },
         {
             "name": "johnnyxlemonade/admin-platform",
@@ -447,12 +447,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/johnnyxlemonade/admin-platform.git",
-                "reference": "aec2b2b5db9fe1a6793b0eede8ae883ba7a482e4"
+                "reference": "e0bc89f9081e54c692d7e47aeec9e47581fcd192"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/johnnyxlemonade/admin-platform/zipball/aec2b2b5db9fe1a6793b0eede8ae883ba7a482e4",
-                "reference": "aec2b2b5db9fe1a6793b0eede8ae883ba7a482e4",
+                "url": "https://api.github.com/repos/johnnyxlemonade/admin-platform/zipball/e0bc89f9081e54c692d7e47aeec9e47581fcd192",
+                "reference": "e0bc89f9081e54c692d7e47aeec9e47581fcd192",
                 "shasum": ""
             },
             "require": {
@@ -509,7 +509,7 @@
                 "issues": "https://github.com/johnnyxlemonade/admin-platform/issues",
                 "source": "https://github.com/johnnyxlemonade/admin-platform/tree/main"
             },
-            "time": "2026-10-07T16:43:05+00:00"
+            "time": "2026-10-07T17:39:04+00:00"
         },
         {
             "name": "johnnyxlemonade/cms-core",
@@ -517,12 +517,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/johnnyxlemonade/cms-core.git",
-                "reference": "308587a530f69c22584fc3e7bb44ad7860e11d1c"
+                "reference": "9f83c7dee2f8134d39e83aed51be49fbd4f304c9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/johnnyxlemonade/cms-core/zipball/308587a530f69c22584fc3e7bb44ad7860e11d1c",
-                "reference": "308587a530f69c22584fc3e7bb44ad7860e11d1c",
+                "url": "https://api.github.com/repos/johnnyxlemonade/cms-core/zipball/9f83c7dee2f8134d39e83aed51be49fbd4f304c9",
+                "reference": "9f83c7dee2f8134d39e83aed51be49fbd4f304c9",
                 "shasum": ""
             },
             "require": {
@@ -552,7 +552,7 @@
                 "issues": "https://github.com/johnnyxlemonade/cms-core/issues",
                 "source": "https://github.com/johnnyxlemonade/cms-core/tree/main"
             },
-            "time": "2026-10-07T16:32:55+00:00"
+            "time": "2026-10-07T17:09:06+00:00"
         },
         {
             "name": "johnnyxlemonade/framework",
