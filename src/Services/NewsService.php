@@ -531,11 +531,18 @@ final class NewsService
      */
     private function prepareTags(mixed $value): array
     {
-        $parsedTags = preg_split('/[\r\n,]+/', (string) $value);
-        $source = is_array($value) ? $value : ($parsedTags === false ? [] : $parsedTags);
+        if (is_array($value)) {
+            $source = $value;
+        } else {
+            $parsedTags = preg_split('/[\r\n,]+/', (string) $value);
+            $source = $parsedTags === false ? [] : $parsedTags;
+        }
         $tags = [];
         foreach ($source as $tag) {
-            $name = trim((string) $tag);
+            if (!is_string($tag)) {
+                continue;
+            }
+            $name = trim($tag);
             if ($name === '') {
                 continue;
             }

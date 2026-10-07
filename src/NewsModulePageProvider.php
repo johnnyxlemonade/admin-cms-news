@@ -22,6 +22,7 @@ use Lemonade\Admin\Page\ModulePage;
 use Lemonade\Admin\Presentation\AdminFileUploadComponent;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsAdminEditorDefinitionFactory;
+use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
@@ -41,6 +42,7 @@ final class NewsModulePageProvider implements ModuleIndexPageProviderInterface, 
         private readonly AdminModuleRouteResolver $routes,
         private readonly NewsAdminEditorDefinitionFactory $adminEditorDefinitions,
         private readonly AdminFileUploadComponent $files,
+        private readonly NewsModel $news,
     ) {}
 
     /**
@@ -196,6 +198,7 @@ final class NewsModulePageProvider implements ModuleIndexPageProviderInterface, 
                     attachmentUpload: $mode === 'edit'
                         ? $this->files->collection('cms.news', (int) $article['id'], 'attachment', 'admin.file_upload.attachments', 'admin.file_upload.attachments_help')
                         : null,
+                    tagOptions: $this->news->tagNamesForLocale($selected['code']),
                 ),
                 'adminEditorContext' => new AdminEditorRenderContext(
                     values: [

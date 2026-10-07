@@ -59,6 +59,7 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
             context: new AdminEditorHeaderContextDefinition('Content language', [
                 new AdminEditorHeaderContextItem('English', '/admin/news/edit/16?locale=en', active: true),
             ]),
+            tagOptions: ['Culture', 'Sport'],
         );
 
         self::assertInstanceOf(SectionBlock::class, $editor->tabs()[0]->blocks()[0]);
@@ -66,6 +67,9 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
 
         self::assertStringContainsString('data-lemonade-rich-text', $html);
         self::assertStringContainsString('name="locale" type="hidden"', $html);
+        self::assertStringContainsString('name="tags[]"', $html);
+        self::assertStringContainsString('data-lemonade-allow-create', $html);
+        self::assertStringContainsString('<option value="Culture">Culture</option>', $html);
         self::assertStringNotContainsString('lm-editor-header-context', $html);
     }
 

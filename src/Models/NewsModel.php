@@ -276,6 +276,32 @@ final class NewsModel extends Model
     }
 
     /**
+     * Vrati serazene unikatni nazvy stitku pro zvolenou content lokalizaci
+     *
+     * @return list<string>
+     */
+    public function tagNamesForLocale(string $locale): array
+    {
+        /** @var list<array{name:string}> $tags */
+        $tags = $this->translationTagsQuery()
+            ->select(['tag.name'])
+            ->from('cms_news_article_translation_tag tag')
+            ->join(
+                'cms_news_article_translation translation',
+                'translation.id = tag.translation_id',
+            )
+            ->where('translation.locale', $locale)
+            ->groupBy('tag.name')
+            ->orderBy('tag.name', 'ASC')
+            ->getArray();
+
+        return array_map(
+            static fn(array $tag): string => (string) $tag['name'],
+            $tags,
+        );
+    }
+
+    /**
      * Vrati publication metadata clanku
      *
      * @return array<string,mixed>|null

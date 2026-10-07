@@ -93,6 +93,7 @@ final class NewsAdminEditorDefinitionFactory
      * Vytvori editor pro jednu content mutation a autorizovany publication panel
      *
      * @param array{id:int|null,state:string,published_at:string|null,translations:list<array<string,mixed>>} $article
+     * @param list<string> $tagOptions
      */
     public function create(
         array $article,
@@ -103,6 +104,7 @@ final class NewsAdminEditorDefinitionFactory
         ?AdminFileUploadCollection $featuredImageUpload = null,
         ?AdminFileUploadCollection $galleryUpload = null,
         ?AdminFileUploadCollection $attachmentUpload = null,
+        array $tagOptions = [],
     ): AdminEditorDefinition {
         $isCreate = $mode === 'create';
         $articleId = $article['id'];
@@ -125,7 +127,7 @@ final class NewsAdminEditorDefinitionFactory
                 descriptionKey: 'admin.editor.unsaved_changes_help',
             ));
         $builder
-            ->tab($this->contentTab($article, $translation, $contentLocale))
+            ->tab($this->contentTab($article, $translation, $contentLocale, $tagOptions))
             ->tab($this->seoTab($translation))
             ->tab($this->settingsTab($article))
             ->tab($this->mediaTab('gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery', $galleryUpload))
@@ -228,8 +230,9 @@ final class NewsAdminEditorDefinitionFactory
      *
      * @param array<string,mixed> $article
      * @param array<string,mixed> $translation
+     * @param list<string> $tagOptions
      */
-    private function contentTab(array $article, array $translation, string $contentLocale): AdminEditorTab
+    private function contentTab(array $article, array $translation, string $contentLocale, array $tagOptions): AdminEditorTab
     {
         return new AdminEditorTab(
             id: 'content',
@@ -254,9 +257,17 @@ final class NewsAdminEditorDefinitionFactory
                                 md: 12,
                             ),
                             new FieldColumn(
-                                AdminEditorFieldDefinition::textarea('tags', labelKey: 'news.fields.tags')
+                                AdminEditorFieldDefinition::select('tags', labelKey: 'news.fields.tags')
                                     ->help('', 'news.fields.tags_help')
-                                    ->value($this->tagsValue($translation)),
+                                    ->multiple()
+                                    ->options($this->tagOptions($tagOptions, $translation['tags'] ?? []))
+                                    ->attributes([
+                                        'data-lemonade-searchable' => true,
+                                        'data-lemonade-allow-create' => true,
+                                        'data-lemonade-search-placeholder-key' => 'news.editor.tags_search',
+                                        'data-lemonade-no-results-key' => 'news.editor.tags_empty',
+                                    ])
+                                    ->value($translation['tags'] ?? []),
                                 md: 12,
                             ),
                             new FieldColumn(
@@ -515,17 +526,25 @@ final class NewsAdminEditorDefinitionFactory
     }
 
     /**
-     * Prevede lokalizovane stitky na stabilni editorovy textovy vstup
+     * Prevede dostupne nazvy stitku na native select options
      *
-     * @param array<string,mixed> $translation
+     * @param list<string> $tagNames
+     * @return array<string,string>
      */
-    private function tagsValue(array $translation): string
+    private function tagOptions(array $tagNames, mixed $selectedTags): array
     {
-        $tags = $translation['tags'] ?? [];
-        if (!is_array($tags)) {
-            return '';
+        $options = [];
+        if (is_array($selectedTags)) {
+            foreach ($selectedTags as $tagName) {
+                if (is_string($tagName)) {
+                    $options[$tagName] = $tagName;
+                }
+            }
+        }
+        foreach ($tagNames as $tagName) {
+            $options[$tagName] = $tagName;
         }
 
-        return implode("\n", array_filter($tags, 'is_string'));
+        return $options;
     }
 }
