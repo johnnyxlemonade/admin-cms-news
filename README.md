@@ -1,30 +1,52 @@
 # Lemonade CMS News
 
-\`johnnyxlemonade/admin-cms-news\` je volitelný CMS modul s kódem \`cms.news\`.
-Po instalaci a povolení přidává správu článků na \`/admin/news\`.
+[![PHPStan](https://github.com/johnnyxlemonade/admin-cms-news/actions/workflows/phpstan.yml/badge.svg)](https://github.com/johnnyxlemonade/admin-cms-news/actions/workflows/phpstan.yml)
+[![Tests](https://github.com/johnnyxlemonade/admin-cms-news/actions/workflows/phpunit.yml/badge.svg)](https://github.com/johnnyxlemonade/admin-cms-news/actions/workflows/phpunit.yml)
+[![Coding Standards](https://github.com/johnnyxlemonade/admin-cms-news/actions/workflows/coding-standards.yml/badge.svg)](https://github.com/johnnyxlemonade/admin-cms-news/actions/workflows/coding-standards.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](composer.json)
 
-Článek má lokalizovaný title, URL adresu, summary, content a SEO metadata.
-Publication a media jsou vlastnosti article rootu. Galerie a přílohy používají
-sdílené file collections Admin Platformy; balíček nezavádí vlastní upload nebo
-úložiště. Canonical URL rezervuje přes sdílený kontrakt \`cms_route\`.
+`johnnyxlemonade/admin-cms-news` is an optional CMS module with the
+`cms.news` code. After installation and explicit enablement, it provides News
+management at `/admin/news`.
 
-Balíček nevlastní veřejné frontend HTML ani rendering článků.
+An article contains localized title, URL address, summary, content, and SEO
+metadata. Publication and media belong to the article root aggregate. Galleries
+and attachments use shared Admin Platform file collections; this package does
+not introduce its own upload transport or storage. Canonical public URLs are
+reserved through the shared `cms_route` contract.
 
-## Instalace
+The package does not own public frontend HTML or article rendering. The host
+application provides public presentation and enforces the module's public
+publication semantics.
 
-Balíček vyžaduje PHP \`>=8.3 <8.6\`, \`johnnyxlemonade/framework\` a
-\`johnnyxlemonade/admin-platform\`.
+## Installation
 
-    composer require johnnyxlemonade/admin-cms-news:dev-main
+The package requires PHP `>=8.3 <8.6`, `johnnyxlemonade/framework`, and
+`johnnyxlemonade/admin-platform`.
 
-Modul objevuje Composer metadata; následně jej nainstalujte a povolte standardním
-module lifecycle host aplikace.
+```bash
+composer require johnnyxlemonade/admin-cms-news:dev-main
+```
 
-## Vývoj a QA
+Composer package metadata discovers the module. Install and enable it through
+the host application's standard module lifecycle.
 
-Kontroly z rootu balíčku:
+## Package boundaries
 
-    composer cs:check
-    composer stan
-    composer test
-    composer qa
+- CMS News owns the localized News aggregate, Admin module contribution,
+  publication workflow, and News-specific permissions.
+- Admin Platform owns shared Admin file collections, upload transport, and
+  `system_file` metadata.
+- CMS Core owns public CMS route contracts and canonical route reservations.
+- The host owns public rendering and public request integration.
+
+## Development and QA
+
+From the package root, run:
+
+```bash
+composer cs:check
+composer stan
+composer test
+composer qa
+```
