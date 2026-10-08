@@ -12,8 +12,8 @@ use Lemonade\Admin\Event\TransactionalEventCollector;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Cms\News\Models\NewsModel;
-use Lemonade\Cms\Routing\CmsRouteReservationService;
-use Lemonade\Cms\Routing\PublicModuleRoutePrefixRepositoryInterface;
+use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
+use Lemonade\Cms\Routing\Module\PublicModuleRoutePrefixRepositoryInterface;
 use Lemonade\Framework\Support\Slug\Slugger;
 use RuntimeException;
 
@@ -474,7 +474,7 @@ final class NewsService
             'show_author' => true,
             'sharing_enabled' => true,
             'show_published_at' => true,
-            'show_featured_image' => true,
+            'show_thumbnail' => true,
             'show_reading_time' => false,
         ];
     }
@@ -491,7 +491,7 @@ final class NewsService
             'show_author' => $this->enabledDisplaySetting('show_author', $metadata),
             'sharing_enabled' => $this->enabledDisplaySetting('sharing_enabled', $metadata),
             'show_published_at' => $this->enabledDisplaySetting('show_published_at', $metadata),
-            'show_featured_image' => $this->enabledDisplaySetting('show_featured_image', $metadata),
+            'show_thumbnail' => $this->enabledDisplaySetting('show_thumbnail', $metadata),
             'show_reading_time' => in_array((string) ($metadata['show_reading_time'] ?? ''), ['1', 'true', 'on'], true),
         ];
     }

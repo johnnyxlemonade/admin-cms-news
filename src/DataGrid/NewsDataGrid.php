@@ -108,7 +108,7 @@ final class NewsDataGrid implements DataGridProviderInterface
         $featuredImages = $this->files->findForEntities(
             'cms.news',
             array_map(static fn(array $article): int => (int) $article['id'], $page->items()),
-            'featured_image',
+            'thumbnail',
         );
         $rows = array_map(
             fn(array $article): DataGridRowDefinition => $this->row(

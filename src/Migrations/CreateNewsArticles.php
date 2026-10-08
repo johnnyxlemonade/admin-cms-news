@@ -33,7 +33,7 @@ final class CreateNewsArticles implements MigrationInterface
             $table->boolean('show_author')->default(1)->comment('Urcuje zobrazeni autora ve verejnem vystupu');
             $table->boolean('sharing_enabled')->default(1)->comment('Urcuje zobrazeni sdileni ve verejnem vystupu');
             $table->boolean('show_published_at')->default(1)->comment('Urcuje zobrazeni data publikace ve verejnem vystupu');
-            $table->boolean('show_featured_image')->default(1)->comment('Urcuje zobrazeni hlavniho obrazku ve verejnem vystupu');
+            $table->boolean('show_thumbnail')->default(1)->comment('Urcuje zobrazeni hlavniho obrazku ve verejnem vystupu');
             $table->boolean('show_reading_time')->default(0)->comment('Urcuje zobrazeni orientacni doby cteni ve verejnem vystupu');
             $table->datetime('deleted_at')->nullable()->comment('Okamzik soft delete celeho article aggregate');
             $table->string('state', 20)->default('draft')->comment('Draft nebo published lifecycle clanku');

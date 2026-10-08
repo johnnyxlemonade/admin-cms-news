@@ -389,9 +389,9 @@ final class NewsAdminEditorDefinitionFactory
                                 article: $article,
                             ),
                             $this->displaySettingField(
-                                name: 'show_featured_image',
-                                labelKey: 'news.fields.show_featured_image',
-                                helpKey: 'news.fields.show_featured_image_help',
+                                name: 'show_thumbnail',
+                                labelKey: 'news.fields.show_thumbnail',
+                                helpKey: 'news.fields.show_thumbnail_help',
                                 article: $article,
                             ),
                             $this->displaySettingField(
@@ -493,7 +493,7 @@ final class NewsAdminEditorDefinitionFactory
         }
         if ($featuredImageUpload !== null) {
             $sections[] = new SectionBlock(
-                id: 'featured-image',
+                id: 'thumbnail',
                 blocks: [
                     new CustomViewBlock(
                         view: 'admin::components.file-upload-collection',
@@ -501,7 +501,7 @@ final class NewsAdminEditorDefinitionFactory
                     ),
                 ],
                 title: '',
-                titleKey: 'news.editor.featured_image.title',
+                titleKey: 'news.editor.thumbnail.title',
             );
         }
 

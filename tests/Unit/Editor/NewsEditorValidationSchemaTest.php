@@ -45,7 +45,7 @@ final class NewsEditorValidationSchemaTest extends TestCase
             'show_author',
             'sharing_enabled',
             'show_published_at',
-            'show_featured_image',
+            'show_thumbnail',
             'show_reading_time',
             'summary',
             'content',

@@ -55,7 +55,7 @@ final class NewsEditorValidationSchema
             ->field('show_author', $this->translator->get('news.fields.show_author'))
             ->field('sharing_enabled', $this->translator->get('news.fields.sharing_enabled'))
             ->field('show_published_at', $this->translator->get('news.fields.show_published_at'))
-            ->field('show_featured_image', $this->translator->get('news.fields.show_featured_image'))
+            ->field('show_thumbnail', $this->translator->get('news.fields.show_thumbnail'))
             ->field('show_reading_time', $this->translator->get('news.fields.show_reading_time'))
             ->field('summary', $this->translator->get('news.fields.summary'))
             ->field('content', $this->translator->get('news.fields.content'))

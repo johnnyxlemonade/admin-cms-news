@@ -186,9 +186,9 @@ final class NewsModulePageProvider implements ModuleIndexPageProviderInterface, 
                         ? $this->files->collection(
                             module: 'cms.news',
                             entityId: (int) $article['id'],
-                            usage: 'featured_image',
-                            labelKey: 'news.fields.featured_image',
-                            helpKey: 'news.editor.featured_image.help',
+                            usage: 'thumbnail',
+                            labelKey: 'news.fields.thumbnail',
+                            helpKey: 'news.editor.thumbnail.help',
                             alt: (string) ($article['translations'][0]['title'] ?? ''),
                         )
                         : null,

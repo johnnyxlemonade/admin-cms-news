@@ -84,9 +84,9 @@ final class CmsNewsServiceProvider implements ServiceProviderInterface
         );
         $container->get(PermissionCatalogRegistry::class)->register(...$definition->permissionDefinitions());
         $files = $container->get(AdminFileUsageRegistry::class);
-        $files->register(new AdminFileUsageDefinition('cms.news', 'featured_image', 'image', 'admin-image', false, false, AdminFileUploadPresentation::Landscape));
+        $files->register(new AdminFileUsageDefinition('cms.news', 'thumbnail', 'image', 'admin-image', false, false, AdminFileUploadPresentation::Landscape));
         $files->register(new AdminFileUsageDefinition('cms.news', 'gallery', 'image', 'admin-image', true, true));
-        $files->register(new AdminFileUsageDefinition('cms.news', 'attachment', 'file', 'admin-file', true, true));
+        $files->register(new AdminFileUsageDefinition('cms.news', 'attachment', 'file', 'admin-file', true, true, imageProfile: 'admin-image'));
         $container->get(NewsActionRegistrar::class)->register();
         $container->get(NewsAuditPresentationRegistrar::class)->register();
     }
