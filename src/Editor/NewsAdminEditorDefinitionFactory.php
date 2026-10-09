@@ -284,7 +284,7 @@ final class NewsAdminEditorDefinitionFactory
                         new FieldGroupBlock([
                             new FieldColumn(
                                 AdminEditorFieldDefinition::textarea('content', labelKey: 'news.fields.content')
-                                    ->attributes(['data-lemonade-rich-text' => true])
+                                    ->richText()
                                     ->value((string) ($translation['content'] ?? '')),
                                 md: 12,
                             ),

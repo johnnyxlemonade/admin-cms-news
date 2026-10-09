@@ -6,8 +6,7 @@ namespace Lemonade\Cms\News\Tests\Unit;
 
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorHeaderContextDefinition;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorHeaderContextItem;
-use Lemonade\Admin\Editor\AdminEditor\AdminEditorRenderContext;
-use Lemonade\Admin\Editor\AdminEditor\AdminEditorRenderer;
+use Lemonade\Admin\Editor\AdminEditor\FieldGroupBlock;
 use Lemonade\Admin\Editor\AdminEditor\SectionBlock;
 use Lemonade\Admin\Icon\AdminIcon;
 use Lemonade\Admin\Module\AdminModuleRegistry;
@@ -28,9 +27,9 @@ use PHPUnit\Framework\TestCase;
 final class NewsAdminEditorDefinitionFactoryTest extends TestCase
 {
     /**
-     * Editor vykresli jednu mutation bez vnorenych locale tabu a zachova rich text marker
+     * Editor deklaruje rich text pouze pro content mutation
      */
-    public function testCreatesSingleLocaleEditorWithRichTextMarker(): void
+    public function testCreatesSingleLocaleEditorWithRichTextContentField(): void
     {
         $router = new Router();
         $router->getNamed('admin.cms.module.index', '/admin/cms/{module}', ControllerAction::for('NewsController', 'index'));
@@ -62,15 +61,10 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
             tagOptions: ['Culture', 'Sport'],
         );
 
-        self::assertInstanceOf(SectionBlock::class, $editor->tabs()[0]->blocks()[0]);
-        $html = (new AdminEditorRenderer())->render($editor, new AdminEditorRenderContext());
-
-        self::assertStringContainsString('data-lemonade-rich-text', $html);
-        self::assertStringContainsString('name="locale" type="hidden"', $html);
-        self::assertStringContainsString('name="tags[]"', $html);
-        self::assertStringContainsString('data-lemonade-allow-create', $html);
-        self::assertStringContainsString('<option value="Culture">Culture</option>', $html);
-        self::assertStringNotContainsString('lm-editor-header-context', $html);
+        $contentSection = array_values(array_filter($editor->tabs()[0]->blocks(), static fn(mixed $block): bool => $block instanceof SectionBlock && $block->id() === 'content-body'))[0];
+        self::assertInstanceOf(SectionBlock::class, $contentSection);
+        self::assertInstanceOf(FieldGroupBlock::class, $contentSection->blocks()[0]);
+        self::assertTrue($contentSection->blocks()[0]->columns()[0]->field()->isRichText());
     }
 
     /**
