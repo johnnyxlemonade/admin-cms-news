@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News;
 
+use Lemonade\Admin\Audit\AuditEventPresentationRegistry;
 use Lemonade\Admin\Authorization\PermissionCatalogRegistry;
 use Lemonade\Admin\DataGrid\DataGridRegistry;
 use Lemonade\Admin\Editor\EditorRegistry;
@@ -15,7 +16,6 @@ use Lemonade\Admin\Presentation\AdminFileUploadPresentation;
 use Lemonade\Admin\Presentation\AdminFileUsageDefinition;
 use Lemonade\Admin\Presentation\AdminFileUsageRegistry;
 use Lemonade\Cms\News\Actions\NewsActionRegistrar;
-use Lemonade\Cms\News\Audit\NewsAuditPresentationRegistrar;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsEditor;
 use Lemonade\Framework\Container\ContainerBuilderInterface;
@@ -78,6 +78,6 @@ final class CmsNewsServiceProvider implements ServiceProviderInterface, Bootable
         $files->register(new AdminFileUsageDefinition('cms.news', 'gallery', 'image', 'admin-image', true, true));
         $files->register(new AdminFileUsageDefinition('cms.news', 'attachment', 'file', 'admin-file', true, true, imageProfile: 'admin-image'));
         $container->get(NewsActionRegistrar::class)->register();
-        $container->get(NewsAuditPresentationRegistrar::class)->register();
+        $container->get(AuditEventPresentationRegistry::class)->registerModuleDefinition($definition);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News;
 
+use Lemonade\Admin\Audit\AuditEventDefinition;
 use Lemonade\Admin\Authorization\PermissionDefinition;
 use Lemonade\Admin\Icon\AdminIcon;
 use Lemonade\Admin\Module\AdminModuleMetadata;
@@ -53,6 +54,25 @@ final readonly class NewsModuleDefinition implements AdminModuleDefinitionInterf
             new PermissionDefinition('cms.news.publish', $this->code(), 'news.permissions.publish', requires: ['cms.news.view']),
             new PermissionDefinition('cms.news.delete', $this->code(), 'news.permissions.delete', requires: ['cms.news.view']),
             new PermissionDefinition('cms.news.restore', $this->code(), 'news.permissions.restore', requires: ['cms.news.view']),
+        ];
+    }
+
+    /**
+     * Deklaruje presentation udalosti skutecnych mutaci obsahu Aktualit
+     *
+     * @return list<AuditEventDefinition>
+     */
+    public function auditEventDefinitions(): array
+    {
+        return [
+            new AuditEventDefinition('created', 'news.audit.events.created', AdminIcon::PlusLg),
+            new AuditEventDefinition('updated', 'news.audit.events.updated', AdminIcon::PencilSquare),
+            new AuditEventDefinition('translation_created', 'news.audit.events.translation_created', AdminIcon::PlusLg),
+            new AuditEventDefinition('translation_updated', 'news.audit.events.translation_updated', AdminIcon::PencilSquare),
+            new AuditEventDefinition('published', 'news.audit.events.published', AdminIcon::CheckCircle),
+            new AuditEventDefinition('unpublished', 'news.audit.events.unpublished', AdminIcon::PauseCircle),
+            new AuditEventDefinition('deleted', 'news.audit.events.deleted', AdminIcon::Trash3),
+            new AuditEventDefinition('restored', 'news.audit.events.restored', AdminIcon::ArrowCounterclockwise),
         ];
     }
 }

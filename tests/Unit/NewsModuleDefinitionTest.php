@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Tests\Unit;
 
+use Lemonade\Admin\Audit\AuditEventPresentationRegistry;
+use Lemonade\Admin\Icon\AdminIcon;
 use Lemonade\Admin\Module\AdminNavigationGroup;
 use Lemonade\Cms\News\NewsModuleDefinition;
 use PHPUnit\Framework\TestCase;
@@ -38,5 +40,37 @@ final class NewsModuleDefinitionTest extends TestCase
             self::assertIsString($catalog['module']['description'] ?? null);
             self::assertNotSame('', $catalog['module']['description']);
         }
+    }
+
+    /**
+     * Auditni udalosti News zustavaji registrovane pod canonical module kodem
+     */
+    public function testItDeclaresAndRegistersPresentationsForAllEmittedNewsEvents(): void
+    {
+        $definition = new NewsModuleDefinition();
+
+        self::assertSame([
+            'created',
+            'updated',
+            'translation_created',
+            'translation_updated',
+            'published',
+            'unpublished',
+            'deleted',
+            'restored',
+        ], array_map(static fn(\Lemonade\Admin\Audit\AuditEventDefinition $event): string => $event->suffix, $definition->auditEventDefinitions()));
+
+        $registry = new AuditEventPresentationRegistry();
+        $registry->registerModuleDefinition($definition);
+
+        $module = $registry->modulePresentation('cms.news');
+        $event = $registry->presentation('cms.news.published');
+
+        self::assertNotNull($module);
+        self::assertSame('news.module.name', $module->nameKey());
+        self::assertSame(AdminIcon::JournalText, $module->icon());
+        self::assertNotNull($event);
+        self::assertSame('news.audit.events.published', $event->translationKey());
+        self::assertSame(AdminIcon::CheckCircle, $event->icon());
     }
 }
