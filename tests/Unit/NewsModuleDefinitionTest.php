@@ -6,7 +6,12 @@ namespace Lemonade\Cms\News\Tests\Unit;
 
 use Lemonade\Admin\Audit\AuditEventPresentationRegistry;
 use Lemonade\Admin\Icon\AdminIcon;
+use Lemonade\Admin\Module\AdminModuleRegistry;
+use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Module\AdminNavigationGroup;
+use Lemonade\Admin\Modules\Registry\ModuleRegistry;
+use Lemonade\Admin\Navigation\AdminNavigationGroupRegistry;
+use Lemonade\Admin\Navigation\AdminNavigationItem;
 use Lemonade\Cms\News\NewsModuleDefinition;
 use PHPUnit\Framework\TestCase;
 
@@ -72,5 +77,37 @@ final class NewsModuleDefinitionTest extends TestCase
         self::assertNotNull($event);
         self::assertSame('news.audit.events.published', $event->translationKey());
         self::assertSame(AdminIcon::CheckCircle, $event->icon());
+    }
+
+    /**
+     * Standardni News lifecycle zachovava aktivni polozku z resolved group a segmentu
+     */
+    public function testItKeepsNewsNavigationActiveAcrossTheStandardLifecycle(): void
+    {
+        $definition = new NewsModuleDefinition();
+        $registry = new AdminModuleRegistry(new AdminNavigationGroupRegistry());
+        $registry->register($definition);
+        $metadata = (new AdminModuleRouteResolver($registry, new ModuleRegistry()))
+            ->metadata('news');
+        $item = new AdminNavigationItem(
+            key: 'module:' . $definition->code(),
+            order: $metadata->navigationOrder(),
+            label: $metadata->nameKey(),
+            labelKey: $metadata->nameKey(),
+            route: 'admin.content.module.index',
+            routeParameters: ['module' => $metadata->routeSegment()],
+            routePrefix: false,
+            icon: $metadata->icon(),
+            moduleCode: $definition->code(),
+            moduleNavigationGroup: $metadata->navigationGroup,
+            moduleRouteSegment: $metadata->routeSegment(),
+        );
+
+        foreach (['index', 'create', 'edit'] as $lifecycleAction) {
+            self::assertTrue(
+                $item->isActiveFor($metadata),
+                sprintf('%s must keep cms.news active.', $lifecycleAction),
+            );
+        }
     }
 }
