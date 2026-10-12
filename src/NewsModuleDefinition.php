@@ -7,6 +7,7 @@ namespace Lemonade\Cms\News;
 use Lemonade\Admin\Authorization\PermissionDefinition;
 use Lemonade\Admin\Icon\AdminIcon;
 use Lemonade\Admin\Module\AdminModuleMetadata;
+use Lemonade\Admin\Module\AdminNavigationGroup;
 use Lemonade\Admin\Module\Contract\AdminModuleDefinitionInterface;
 
 /**
@@ -30,12 +31,11 @@ final readonly class NewsModuleDefinition implements AdminModuleDefinitionInterf
         return new AdminModuleMetadata(
             nameKey: 'news.module.name',
             icon: AdminIcon::JournalText,
-            navigationGroup: 'content',
+            navigationGroup: AdminNavigationGroup::Content,
             navigationOrder: 10,
-            destinationRoute: 'admin.cms.module.index',
             routeSegment: 'news',
-            destinationParameters: ['module' => 'news'],
             navigationPermission: 'cms.news.view',
+            descriptionKey: 'news.module.description',
         );
     }
 
