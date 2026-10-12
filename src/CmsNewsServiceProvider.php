@@ -15,16 +15,12 @@ use Lemonade\Admin\Presentation\AdminFileUploadPresentation;
 use Lemonade\Admin\Presentation\AdminFileUsageDefinition;
 use Lemonade\Admin\Presentation\AdminFileUsageRegistry;
 use Lemonade\Cms\News\Actions\NewsActionRegistrar;
-use Lemonade\Cms\News\Actions\NewsDeleteAction;
-use Lemonade\Cms\News\Actions\NewsRestoreAction;
 use Lemonade\Cms\News\Audit\NewsAuditPresentationRegistrar;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
-use Lemonade\Cms\News\Editor\NewsAdminEditorDefinitionFactory;
 use Lemonade\Cms\News\Editor\NewsEditor;
-use Lemonade\Cms\News\Editor\NewsEditorValidationSchema;
-use Lemonade\Cms\News\Models\NewsModel;
-use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Container\ContainerBuilderInterface;
+use Lemonade\Framework\Container\ContainerInterface;
+use Lemonade\Framework\Core\BootableServiceProviderInterface;
 use Lemonade\Framework\Core\ServiceProviderInterface;
 use Lemonade\Framework\Localization\TranslationResourceRegistry;
 use Lemonade\Framework\View\ViewResourceRegistry;
@@ -32,12 +28,17 @@ use Lemonade\Framework\View\ViewResourceRegistry;
 /**
  * Registruje News module contribution do sdilenych Admin a CMS registry
  */
-final class CmsNewsServiceProvider implements ServiceProviderInterface
+final class CmsNewsServiceProvider implements ServiceProviderInterface, BootableServiceProviderInterface
 {
     /**
-     * Pripoji metadata, prava, verejne handlery a package resources modulu
+     * Registruje DI definitions modulu
      */
-    public function register(ContainerBuilderInterface $container): void
+    public function register(ContainerBuilderInterface $container): void {}
+
+    /**
+     * Pripoji metadata, prava, verejne handlery a package resources modulu po container freeze
+     */
+    public function boot(ContainerInterface $container): void
     {
         $definition = new NewsModuleDefinition();
         $container->get(TranslationResourceRegistry::class)->register(
@@ -49,17 +50,6 @@ final class CmsNewsServiceProvider implements ServiceProviderInterface
             __DIR__ . '/Resources/views',
         );
         $container->get(ClientTranslationGroupRegistry::class)->register('news');
-        $container->singleton(NewsModel::class, NewsModel::class);
-        $container->singleton(NewsService::class, NewsService::class);
-        $container->singleton(NewsDataGrid::class, NewsDataGrid::class);
-        $container->singleton(NewsModulePageProvider::class, NewsModulePageProvider::class);
-        $container->singleton(NewsEditorValidationSchema::class, NewsEditorValidationSchema::class);
-        $container->singleton(NewsEditor::class, NewsEditor::class);
-        $container->singleton(NewsAdminEditorDefinitionFactory::class, NewsAdminEditorDefinitionFactory::class);
-        $container->singleton(NewsAuditPresentationRegistrar::class, NewsAuditPresentationRegistrar::class);
-        $container->singleton(NewsDeleteAction::class, NewsDeleteAction::class);
-        $container->singleton(NewsRestoreAction::class, NewsRestoreAction::class);
-        $container->singleton(NewsActionRegistrar::class, NewsActionRegistrar::class);
         $container->get(ModuleRegistry::class)->register($definition);
         $container->get(AdminModuleRegistry::class)->register($definition);
         $container->get(DataGridRegistry::class)->registerFactory(
