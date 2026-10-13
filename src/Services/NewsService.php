@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Services;
 
+use DateTimeImmutable;
 use Lemonade\Admin\Audit\AuditActor;
 use Lemonade\Admin\Audit\AuditOperation;
 use Lemonade\Admin\Authorization\AuthorizationService;
@@ -11,6 +12,7 @@ use Lemonade\Admin\Event\DomainEvent;
 use Lemonade\Admin\Event\TransactionalEventCollector;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
 use Lemonade\Admin\Localization\LanguageRegistry;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
 use Lemonade\Cms\Routing\Module\PublicModuleRoutePrefixRepositoryInterface;
@@ -36,20 +38,17 @@ final class NewsService
     ) {}
 
     /**
-     * Vytvori pojmenovany draft s prvni lokalizovanou mutaci bez canonical URL
-     *
-     * @param array<string,mixed> $translation
+     * Vytvori minimalni draft s null vychozi content mutaci vyzadovanou schematem
      */
-    public function create(AuditActor $actor, array $translation): int
+    public function createDraft(AuditActor $actor, string $locale): int
     {
-        $prepared = $this->prepareInitialTranslation($translation);
         $operation = new AuditOperation(
             moduleCode: 'cms.news',
             code: 'news.create',
             actor: $actor,
         );
 
-        return $this->events->execute($operation, function (TransactionalEventCollector $events) use ($prepared): int {
+        return $this->events->execute($operation, function (TransactionalEventCollector $events) use ($locale): int {
             $now = date('Y-m-d H:i:s');
             $articleId = $this->news->createDraft(
                 null,
@@ -62,8 +61,8 @@ final class NewsService
             }
             $this->news->saveTranslation(
                 $articleId,
-                $prepared['locale'],
-                $prepared['title'],
+                $locale,
+                null,
                 null,
                 null,
                 null,
@@ -158,31 +157,36 @@ final class NewsService
     /**
      * Zmeni publication state pouze pro actora s cms.news.publish
      */
-    public function changePublication(AuditActor $actor, int $articleId, string $state, ?string $publishedAt): void
-    {
+    public function changePublication(
+        AuditActor $actor,
+        int $articleId,
+        string $locale,
+        CmsPublicationState $state,
+        ?string $publishedAt,
+    ): void {
         $this->authorization->requirePermission('cms.news.publish');
-        if (!in_array($state, ['draft', 'published'], true)) {
+        if ($state === CmsPublicationState::New) {
             throw new RuntimeException('news.validation.publication_invalid');
         }
         $this->assertArticle($articleId);
-        $publication = $this->news->publication($articleId);
-        $resolvedPublishedAt = $state === 'published'
-            ? ($publishedAt !== null && $publishedAt !== '' ? $publishedAt : date('Y-m-d H:i:s'))
+        $publication = $this->news->publication($articleId, $locale);
+        $resolvedPublishedAt = $state === CmsPublicationState::Published
+            ? ($publishedAt !== null && $publishedAt !== '' ? $this->publicationDateTime($publishedAt) : date('Y-m-d H:i:s'))
             : null;
         if ($publication !== null
-            && $publication['state'] === $state
+            && (int) $publication['publication_state'] === $state->value
             && $publication['published_at'] === $resolvedPublishedAt
         ) {
             return;
         }
-        $eventCode = $state === 'published' ? 'cms.news.published' : 'cms.news.unpublished';
+        $eventCode = $state === CmsPublicationState::Published ? 'cms.news.published' : 'cms.news.unpublished';
         $operation = new AuditOperation(
             moduleCode: 'cms.news',
             code: 'news.publication.change',
             actor: $actor,
         );
-        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $state, $resolvedPublishedAt, $eventCode): void {
-            $this->news->savePublication($articleId, $state, $resolvedPublishedAt, date('Y-m-d H:i:s'));
+        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $locale, $state, $resolvedPublishedAt, $eventCode): void {
+            $this->news->savePublication($articleId, $locale, $state, $resolvedPublishedAt, date('Y-m-d H:i:s'));
             $events->record(new DomainEvent(
                 code: $eventCode,
                 moduleCode: 'cms.news',
@@ -283,13 +287,13 @@ final class NewsService
         if ($title === '') {
             throw new RuntimeException('news.validation.title_required');
         }
-        if (mb_strlen($title) > 255) {
+        if (mb_strlen($title) > 180) {
             throw new RuntimeException('news.validation.title_max_length');
         }
         $existingSlug = $existing['slug'] ?? null;
         $baseSlug = is_string($existingSlug) && $existingSlug !== ''
             ? $existingSlug
-            : $this->slugger->slug($title, 255, $locale);
+            : $this->slugger->slug($title, 180, $locale);
         if ($baseSlug === '') {
             throw new RuntimeException('news.validation.url_invalid');
         }
@@ -312,29 +316,6 @@ final class NewsService
             'metaDescription' => $this->nullableText($translation['meta_description'] ?? null),
             'tags' => $this->prepareTags($translation['tags'] ?? null),
         ];
-    }
-
-    /**
-     * Overi minimum potrebne pro zalozeni draftu bez rezervace URL adresy
-     *
-     * @param array<string,mixed> $translation
-     * @return array{locale:string,title:string}
-     */
-    private function prepareInitialTranslation(array $translation): array
-    {
-        $locale = strtolower(trim((string) ($translation['locale'] ?? '')));
-        $title = trim((string) ($translation['title'] ?? ''));
-        if (!$this->isEnabledLocale($locale)) {
-            throw new RuntimeException('news.validation.locale_invalid');
-        }
-        if ($title === '') {
-            throw new RuntimeException('news.validation.title_required');
-        }
-        if (mb_strlen($title) > 255) {
-            throw new RuntimeException('news.validation.title_max_length');
-        }
-
-        return ['locale' => $locale, 'title' => $title];
     }
 
     /**
@@ -384,6 +365,7 @@ final class NewsService
         if ($this->news->translationTags($articleId, $translation['locale']) !== $translation['tags']) {
             $this->news->syncTranslationTags($translationId, $translation['tags'], $now);
         }
+        $this->news->promoteTranslationToDraft($articleId, $translation['locale'], $now);
     }
 
     /**
@@ -444,6 +426,19 @@ final class NewsService
     }
 
     /**
+     * Prevede native editorovy datetime na canonical databazovy format aplikace
+     */
+    private function publicationDateTime(string $value): string
+    {
+        $datetime = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i', trim($value));
+        if ($datetime === false || $datetime->format('Y-m-d\\TH:i') !== trim($value)) {
+            throw new RuntimeException('news.validation.publication_invalid');
+        }
+
+        return $datetime->format('Y-m-d H:i:s');
+    }
+
+    /**
      * Pripravi volitelne root metadata bez lokalizacni mutace
      *
      * @param array<string,mixed> $metadata
@@ -475,7 +470,8 @@ final class NewsService
             'sharing_enabled' => true,
             'show_published_at' => true,
             'show_thumbnail' => true,
-            'show_reading_time' => false,
+            'show_reading_time' => true,
+            'show_tags' => true,
         ];
     }
 
@@ -492,7 +488,8 @@ final class NewsService
             'sharing_enabled' => $this->enabledDisplaySetting('sharing_enabled', $metadata),
             'show_published_at' => $this->enabledDisplaySetting('show_published_at', $metadata),
             'show_thumbnail' => $this->enabledDisplaySetting('show_thumbnail', $metadata),
-            'show_reading_time' => in_array((string) ($metadata['show_reading_time'] ?? ''), ['1', 'true', 'on'], true),
+            'show_reading_time' => $this->enabledDisplaySetting('show_reading_time', $metadata),
+            'show_tags' => $this->enabledDisplaySetting('show_tags', $metadata),
         ];
     }
 

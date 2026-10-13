@@ -14,6 +14,7 @@ use Lemonade\Admin\Editor\Exception\EditorValidationException;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Routing\UrlGenerator;
@@ -47,7 +48,7 @@ final class NewsEditor implements EditorProviderInterface
             savePermission: 'cms.news.edit',
             createPermission: 'cms.news.create',
             fields: [
-                new EditorFieldDefinition(name: 'state', type: 'text', readOnly: false, permission: null),
+                new EditorFieldDefinition(name: 'publication_state', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'published_at', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'author_name', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'recommended', type: 'text', readOnly: false, permission: null),
@@ -56,6 +57,7 @@ final class NewsEditor implements EditorProviderInterface
                 new EditorFieldDefinition(name: 'show_published_at', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'show_thumbnail', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'show_reading_time', type: 'text', readOnly: false, permission: null),
+                new EditorFieldDefinition(name: 'show_tags', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'locale', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'title', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'summary', type: 'text', readOnly: false, permission: null),
@@ -81,7 +83,7 @@ final class NewsEditor implements EditorProviderInterface
     }
 
     /**
-     * Vrati prazdny draft v canonical default content locale
+     * Vrati prazdny editorovy stav pro nepouzitou fallback create route
      */
     public function createData(): array
     {
@@ -96,9 +98,8 @@ final class NewsEditor implements EditorProviderInterface
                 'sharing_enabled' => 1,
                 'show_published_at' => 1,
                 'show_thumbnail' => 1,
-                'show_reading_time' => 0,
-                'state' => 'draft',
-                'published_at' => null,
+                'show_reading_time' => 1,
+                'show_tags' => 1,
                 'translations' => [],
             ],
             'locales' => $locales,
@@ -106,11 +107,11 @@ final class NewsEditor implements EditorProviderInterface
     }
 
     /**
-     * Vrati validaci pro zalozeni draftu s jednou aktualni content mutation
+     * Vrati prazdnou validaci pro okamzite zalozeni draftu bez vstupu uzivatele
      */
     public function createValidationSchema(): ValidationSchema
     {
-        return $this->validation->forCreate();
+        return ValidationSchema::create();
     }
 
     /**
@@ -132,12 +133,14 @@ final class NewsEditor implements EditorProviderInterface
             foreach ($this->translations($data) as $translation) {
                 $this->service->saveTranslation($actor, $id, $translation);
             }
-            if (($data['state'] ?? '') !== '') {
+            $publicationState = CmsPublicationState::tryFrom((int) ($data['publication_state'] ?? -1));
+            if ($publicationState !== null && $publicationState !== CmsPublicationState::New) {
                 $publishedAt = $data['published_at'] ?? null;
                 $this->service->changePublication(
                     $actor,
                     $id,
-                    (string) $data['state'],
+                    (string) $data['locale'],
+                    $publicationState,
                     $publishedAt !== '' ? $publishedAt : null,
                 );
             }
@@ -152,15 +155,14 @@ final class NewsEditor implements EditorProviderInterface
     }
 
     /**
-     * Zalozi pojmenovany draft z prvni lokalizovane mutation
+     * Zalozi minimalni draft v canonical vychozim content locale
      */
     public function create(array $data): EditorSaveResult
     {
-        $translations = $this->translations($data);
         try {
-            $firstTranslation = $translations[0] ?? throw new \RuntimeException('news.validation.translation_required');
             $actor = AuditActor::user($this->actors->requireLocalUser()->id());
-            $articleId = $this->service->create($actor, $firstTranslation);
+            $locale = $this->languages->defaultLocale();
+            $articleId = $this->service->createDraft($actor, $locale);
         } catch (\RuntimeException $exception) {
             throw new EditorValidationException($exception->getMessage(), previous: $exception);
         }
@@ -168,7 +170,7 @@ final class NewsEditor implements EditorProviderInterface
         return new EditorSaveResult(
             data: [
                 'id' => $articleId,
-                'editUrl' => $this->editUrl($articleId, (string) $firstTranslation['locale']),
+                'editUrl' => $this->editUrl($articleId, $locale),
             ],
             messageKey: 'news.editor.created',
         );

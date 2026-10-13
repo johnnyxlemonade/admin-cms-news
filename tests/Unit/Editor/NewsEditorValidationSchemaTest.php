@@ -14,16 +14,13 @@ use PHPUnit\Framework\TestCase;
 final class NewsEditorValidationSchemaTest extends TestCase
 {
     /**
-     * Create modal prijima jen locale a title potrebne pro pojmenovany draft
+     * Create nevynucuje zadny formularovy vstup pred zalozenim draftu
      */
-    public function testCreateDefinesOnlyTheDraftFields(): void
+    public function testCreateDoesNotRequireFormFields(): void
     {
         $fields = $this->schema()->forCreate()->fields();
 
-        self::assertSame(['locale', 'title'], array_keys($fields));
-        self::assertSame('required', $fields['locale']->rules()[0]->name());
-        self::assertSame('required', $fields['title']->rules()[0]->name());
-        self::assertSame('max_length', $fields['title']->rules()[1]->name());
+        self::assertSame([], $fields);
     }
 
     /**
@@ -39,7 +36,7 @@ final class NewsEditorValidationSchemaTest extends TestCase
             'author_name',
             'page_title',
             'meta_description',
-            'state',
+            'publication_state',
             'published_at',
             'recommended',
             'show_author',
@@ -47,11 +44,12 @@ final class NewsEditorValidationSchemaTest extends TestCase
             'show_published_at',
             'show_thumbnail',
             'show_reading_time',
+            'show_tags',
             'summary',
             'content',
             'tags',
         ], array_keys($fields));
-        self::assertSame('in_list', $fields['state']->rules()[0]->name());
+        self::assertSame('in_list', $fields['publication_state']->rules()[0]->name());
     }
 
     /**

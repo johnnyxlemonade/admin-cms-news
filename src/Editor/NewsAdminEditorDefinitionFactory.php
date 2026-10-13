@@ -36,69 +36,14 @@ final class NewsAdminEditorDefinitionFactory
     ) {}
 
     /**
-     * Vytvori minimalni modal pro zalozeni pojmenovaneho News draftu
-     *
-     * @param list<array<string,mixed>> $locales
-     */
-    public function modalCreate(array $locales): AdminEditorDefinition
-    {
-        $defaultLocale = $this->defaultLocale($locales);
-        $fields = [
-            new FieldColumn(
-                AdminEditorFieldDefinition::text('title', labelKey: 'news.fields.title')
-                    ->required()
-                    ->attributes(['maxlength' => '255']),
-                md: 12,
-            ),
-        ];
-        if (count($locales) === 1) {
-            $fields[] = new FieldColumn(
-                AdminEditorFieldDefinition::hidden('locale')->defaultValue($defaultLocale),
-                md: 12,
-            );
-        } else {
-            $options = [];
-            foreach ($locales as $locale) {
-                $options[(string) $locale['code']] = (string) $locale['name'];
-            }
-            $fields[] = new FieldColumn(
-                AdminEditorFieldDefinition::select('locale', labelKey: 'news.editor.locale.label')
-                    ->required()
-                    ->options($options)
-                    ->defaultValue($defaultLocale),
-                md: 12,
-            );
-        }
-
-        return AdminEditorBuilder::create('cms.news.modal-create')
-            ->form(new AdminEditorFormDefinition(
-                id: 'news-modal-create-form',
-                action: $this->urls->route(
-                    name: $this->routes->managementRouteName('news', 'store'),
-                    params: ['module' => 'news'],
-                ),
-                actionUrl: $this->urls->route(
-                    name: $this->routes->managementRouteName('news', 'ajax.create'),
-                    params: ['module' => 'news'],
-                ),
-                actionKey: 'create',
-                novalidate: true,
-                navigateToEditAfterCreate: true,
-            ))
-            ->block(new FieldGroupBlock($fields))
-            ->build();
-    }
-
-    /**
      * Vytvori editor pro jednu content mutation a autorizovany publication panel
      *
-     * @param array{id:int|null,state:string,published_at:string|null,translations:list<array<string,mixed>>} $article
+     * @param array{id:int|null,translations:list<array<string,mixed>>} $article
      * @param list<string> $tagOptions
      */
     public function create(
         array $article,
         string $contentLocale,
-        string $mode,
         bool $canPublish,
         ?AdminEditorHeaderContextDefinition $context = null,
         ?AdminFileUploadCollection $featuredImageUpload = null,
@@ -106,12 +51,11 @@ final class NewsAdminEditorDefinitionFactory
         ?AdminFileUploadCollection $attachmentUpload = null,
         array $tagOptions = [],
     ): AdminEditorDefinition {
-        $isCreate = $mode === 'create';
         $articleId = $article['id'];
         $translation = $article['translations'][0] ?? [];
         $builder = AdminEditorBuilder::create('cms.news')
-            ->form($this->editorForm($isCreate, $articleId, $contentLocale))
-            ->header($this->header($isCreate, $context))
+            ->form($this->editorForm((int) $articleId, $contentLocale))
+            ->header($this->header($context))
             ->saveBar(new AdminEditorSaveBarDefinition(
                 primaryAction: new AdminEditorActionDefinition(
                     label: '',
@@ -146,52 +90,31 @@ final class NewsAdminEditorDefinitionFactory
     }
 
     /**
-     * Vybere vychozi enabled locale z canonical content locale projection
-     *
-     * @param list<array<string,mixed>> $locales
+     * Sestavi transportni formular pro ulozeni existujiciho News draftu
      */
-    private function defaultLocale(array $locales): string
+    private function editorForm(int $articleId, string $contentLocale): AdminEditorFormDefinition
     {
-        foreach ($locales as $locale) {
-            if ((int) ($locale['is_default'] ?? 0) === 1) {
-                return (string) $locale['code'];
-            }
-        }
-
-        return (string) ($locales[0]['code'] ?? '');
-    }
-
-    /**
-     * Sestavi transportni formular create nebo full-page save editoru
-     */
-    private function editorForm(bool $isCreate, ?int $articleId, string $contentLocale): AdminEditorFormDefinition
-    {
-        $routeName = $this->routes->managementRouteName('news', $isCreate ? 'store' : 'update');
-        $actionRouteName = $this->routes->managementRouteName('news', $isCreate ? 'ajax.create' : 'ajax.entity');
-        $routeParams = $isCreate
-            ? ['module' => 'news', 'locale' => $contentLocale]
-            : ['module' => 'news', 'id' => $articleId, 'locale' => $contentLocale];
+        $routeParams = ['module' => 'news', 'id' => $articleId, 'locale' => $contentLocale];
 
         return new AdminEditorFormDefinition(
             id: 'news-editor-form',
-            action: $this->urls->route(name: $routeName, params: $routeParams),
-            actionUrl: $this->urls->route(name: $actionRouteName, params: $routeParams),
-            actionKey: $isCreate ? 'create' : 'save',
+            action: $this->urls->route(name: $this->routes->managementRouteName('news', 'update'), params: $routeParams),
+            actionUrl: $this->urls->route(name: $this->routes->managementRouteName('news', 'ajax.entity'), params: $routeParams),
+            actionKey: 'save',
             novalidate: true,
-            navigateToEditAfterCreate: $isCreate,
         );
     }
 
     /**
      * Sestavi shared hlavicku s breadcrumbem, akcemi a content locale contextem
      */
-    private function header(bool $isCreate, ?AdminEditorHeaderContextDefinition $context): AdminEditorHeaderDefinition
+    private function header(?AdminEditorHeaderContextDefinition $context): AdminEditorHeaderDefinition
     {
         $indexUrl = $this->urls->route(
             name: $this->routes->managementRouteName('news', 'index'),
             params: ['module' => 'news'],
         );
-        $titleKey = $isCreate ? 'news.editor.create_title' : 'news.editor.title';
+        $titleKey = 'news.editor.title';
 
         return new AdminEditorHeaderDefinition(
             title: '',
@@ -246,7 +169,7 @@ final class NewsAdminEditorDefinitionFactory
                             new FieldColumn(
                                 AdminEditorFieldDefinition::text('title', labelKey: 'news.fields.title')
                                     ->required()
-                                    ->attributes(['maxlength' => '255'])
+                                    ->attributes(['maxlength' => '180'])
                                     ->value((string) ($translation['title'] ?? '')),
                                 md: 12,
                             ),
@@ -285,6 +208,8 @@ final class NewsAdminEditorDefinitionFactory
                             new FieldColumn(
                                 AdminEditorFieldDefinition::textarea('content', labelKey: 'news.fields.content')
                                     ->richText()
+                                    ->imageUpload()
+                                    ->fileUpload()
                                     ->value((string) ($translation['content'] ?? '')),
                                 md: 12,
                             ),
@@ -316,7 +241,7 @@ final class NewsAdminEditorDefinitionFactory
                         new FieldGroupBlock([
                             new FieldColumn(
                                 AdminEditorFieldDefinition::text('page_title', labelKey: 'news.fields.page_title')
-                                    ->attributes(['maxlength' => '255'])
+                                    ->attributes(['maxlength' => '180'])
                                     ->help('', 'news.fields.page_title_help')
                                     ->value((string) ($translation['page_title'] ?? '')),
                                 md: 12,
@@ -400,6 +325,12 @@ final class NewsAdminEditorDefinitionFactory
                                 helpKey: 'news.fields.show_reading_time_help',
                                 article: $article,
                             ),
+                            $this->displaySettingField(
+                                name: 'show_tags',
+                                labelKey: 'news.fields.show_tags',
+                                helpKey: 'news.fields.show_tags_help',
+                                article: $article,
+                            ),
                         ]),
                     ],
                     title: '',
@@ -471,18 +402,19 @@ final class NewsAdminEditorDefinitionFactory
                 blocks: [
                     new FieldGroupBlock([
                         new FieldColumn(
-                            AdminEditorFieldDefinition::select('state', labelKey: 'news.fields.state')
-                                ->options(['draft' => '', 'published' => ''])
+                            AdminEditorFieldDefinition::select('publication_state', labelKey: 'news.fields.publication_state')
+                                ->options(['0' => '', '1' => '', '2' => ''])
                                 ->optionLabelKeys([
-                                    'draft' => 'news.state.draft',
-                                    'published' => 'news.state.published',
+                                    '0' => 'admin.status.new',
+                                    '1' => 'admin.status.draft',
+                                    '2' => 'admin.status.published',
                                 ])
-                                ->value((string) $article['state']),
+                                ->value((string) ($article['translations'][0]['publication_state'] ?? 0)),
                             md: 12,
                         ),
                         new FieldColumn(
-                            AdminEditorFieldDefinition::text('published_at', labelKey: 'news.fields.published_at')
-                                ->value((string) ($article['published_at'] ?? '')),
+                            AdminEditorFieldDefinition::datetimeLocal('published_at', labelKey: 'news.fields.published_at')
+                                ->value((string) ($article['translations'][0]['published_at'] ?? '')),
                             md: 12,
                         ),
                     ]),

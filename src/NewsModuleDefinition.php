@@ -10,11 +10,14 @@ use Lemonade\Admin\Icon\AdminIcon;
 use Lemonade\Admin\Module\AdminModuleMetadata;
 use Lemonade\Admin\Module\AdminNavigationGroup;
 use Lemonade\Admin\Module\Contract\AdminModuleDefinitionInterface;
+use Lemonade\Admin\Module\Contract\AdminModuleFileCapabilitiesInterface;
+use Lemonade\Admin\Presentation\AdminFileCapabilities;
+use Lemonade\Admin\Presentation\AdminFilePresentation;
 
 /**
  * Deklaruje navigaci a prava administracniho managementu novinek
  */
-final readonly class NewsModuleDefinition implements AdminModuleDefinitionInterface
+final readonly class NewsModuleDefinition implements AdminModuleDefinitionInterface, AdminModuleFileCapabilitiesInterface
 {
     /**
      * Vrati stabilni kod News modulu
@@ -37,6 +40,20 @@ final readonly class NewsModuleDefinition implements AdminModuleDefinitionInterf
             routeSegment: 'news',
             navigationPermission: 'cms.news.view',
             descriptionKey: 'news.module.description',
+        );
+    }
+
+    /**
+     * Vraci file capability News modulu
+     */
+    public function fileCapabilities(): AdminFileCapabilities
+    {
+        return new AdminFileCapabilities(
+            thumbnail: AdminFilePresentation::Landscape,
+            gallery: true,
+            attachments: true,
+            richTextImages: true,
+            richTextFiles: true,
         );
     }
 

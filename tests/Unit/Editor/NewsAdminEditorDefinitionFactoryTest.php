@@ -38,10 +38,10 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
         $editor = $factory->create(
             article: [
                 'id' => 16,
-                'state' => 'draft',
-                'published_at' => null,
                 'translations' => [[
                     'locale' => 'en',
+                    'publication_state' => 1,
+                    'published_at' => null,
                     'title' => 'News',
                     'summary' => null,
                     'content' => '<p>Content</p>',
@@ -51,7 +51,6 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
                 ]],
             ],
             contentLocale: 'en',
-            mode: 'edit',
             canPublish: false,
             context: new AdminEditorHeaderContextDefinition('Content language', [
                 new AdminEditorHeaderContextItem('English', '/admin/news/edit/16?locale=en', active: true),
@@ -63,6 +62,8 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
         self::assertInstanceOf(SectionBlock::class, $contentSection);
         self::assertInstanceOf(FieldGroupBlock::class, $contentSection->blocks()[0]);
         self::assertTrue($contentSection->blocks()[0]->columns()[0]->field()->isRichText());
+        self::assertTrue($contentSection->blocks()[0]->columns()[0]->field()->hasRichTextImageUpload());
+        self::assertTrue($contentSection->blocks()[0]->columns()[0]->field()->hasRichTextFileUpload());
     }
 
     /**

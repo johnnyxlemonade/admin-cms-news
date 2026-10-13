@@ -12,9 +12,6 @@ use Lemonade\Admin\Localization\ClientTranslationGroupRegistry;
 use Lemonade\Admin\Module\AdminModuleRegistry;
 use Lemonade\Admin\Modules\Registry\ModuleRegistry;
 use Lemonade\Admin\Page\ModulePageRegistry;
-use Lemonade\Admin\Presentation\AdminFileUploadPresentation;
-use Lemonade\Admin\Presentation\AdminFileUsageDefinition;
-use Lemonade\Admin\Presentation\AdminFileUsageRegistry;
 use Lemonade\Cms\News\Actions\NewsActionRegistrar;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsEditor;
@@ -64,19 +61,11 @@ final class CmsNewsServiceProvider implements ServiceProviderInterface, Bootable
             moduleCode: $definition->code(),
             provider: static fn(): NewsModulePageProvider => $container->get(NewsModulePageProvider::class),
         );
-        $container->get(ModulePageRegistry::class)->registerModalEditorFactory(
-            moduleCode: $definition->code(),
-            provider: static fn(): NewsModulePageProvider => $container->get(NewsModulePageProvider::class),
-        );
         $container->get(EditorRegistry::class)->registerFactory(
             moduleCode: $definition->code(),
             provider: static fn(): NewsEditor => $container->get(NewsEditor::class),
         );
         $container->get(PermissionCatalogRegistry::class)->register(...$definition->permissionDefinitions());
-        $files = $container->get(AdminFileUsageRegistry::class);
-        $files->register(new AdminFileUsageDefinition('cms.news', 'thumbnail', 'image', 'admin-image', false, false, AdminFileUploadPresentation::Landscape));
-        $files->register(new AdminFileUsageDefinition('cms.news', 'gallery', 'image', 'admin-image', true, true));
-        $files->register(new AdminFileUsageDefinition('cms.news', 'attachment', 'file', 'admin-file', true, true, imageProfile: 'admin-image'));
         $container->get(NewsActionRegistrar::class)->register();
         $container->get(AuditEventPresentationRegistry::class)->registerModuleDefinition($definition);
     }

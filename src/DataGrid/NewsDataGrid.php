@@ -24,6 +24,7 @@ use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Admin\Select\SelectOptionDefinition;
 use Lemonade\Admin\Select\StaticSelectOptionSource;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
@@ -64,7 +65,7 @@ final class NewsDataGrid implements DataGridProviderInterface
             id: 'cms-news',
             columns: [
                 new DataGridColumnDefinition('title', 'news.fields.title', 'title'),
-                new DataGridColumnDefinition('state', 'news.fields.state', 'state'),
+                new DataGridColumnDefinition('state', 'news.fields.publication_state', 'state'),
                 new DataGridColumnDefinition('publishedAt', 'news.fields.published_at', 'publishedAt'),
                 new DataGridColumnDefinition('updatedAt', 'news.fields.updated_at', 'updatedAt'),
                 new DataGridColumnDefinition('actions', 'admin.common.actions'),
@@ -81,8 +82,9 @@ final class NewsDataGrid implements DataGridProviderInterface
                     ),
                 ),
                 new DataGridFilterDefinition('state', new StaticSelectOptionSource([
-                    new SelectOptionDefinition('draft', $this->translator->get('news.state.draft')),
-                    new SelectOptionDefinition('published', $this->translator->get('news.state.published')),
+                    new SelectOptionDefinition('new', $this->translator->get('admin.status.new')),
+                    new SelectOptionDefinition('draft', $this->translator->get('admin.status.draft')),
+                    new SelectOptionDefinition('published', $this->translator->get('admin.status.published')),
                 ])),
                 new DataGridFilterDefinition('locale', new StaticSelectOptionSource(array_map(
                     fn(array $language): SelectOptionDefinition => new SelectOptionDefinition($language['code'], $language['name']),
@@ -144,6 +146,11 @@ final class NewsDataGrid implements DataGridProviderInterface
     private function row(array $article, ?array $featuredImage): DataGridRowDefinition
     {
         $articleId = (int) $article['id'];
+        $locale = (string) $article['locale'];
+        $title = trim((string) ($article['title'] ?? ''));
+        $displayTitle = $title === ''
+            ? $this->translator->get('news.list.untitled_locale', ['locale' => $locale])
+            : $title;
         $deleted = $article['deleted_at'] !== null;
         $editable = !$deleted && $this->authorization->hasPermission('cms.news.edit');
 
@@ -151,7 +158,7 @@ final class NewsDataGrid implements DataGridProviderInterface
             id: $articleId,
             cells: [
                 'title' => new ThumbnailCell(
-                    value: (string) $article['title'],
+                    value: $displayTitle,
                     thumbnail: $featuredImage === null
                         ? $this->thumbnails->fallback(
                             fallback: null,
@@ -161,21 +168,38 @@ final class NewsDataGrid implements DataGridProviderInterface
                         : $this->thumbnails->image(
                             module: 'cms.news',
                             imageId: (string) $featuredImage['id'],
-                            alt: (string) $article['title'],
+                            alt: $displayTitle,
                             fallback: null,
                             size: 'compact',
                             shape: 'rounded',
                             presentation: 'datagrid',
                         ),
                     secondary: (string) $article['slug'],
-                    url: $editable ? $this->editUrl($articleId, (string) $article['locale']) : null,
+                    url: $editable ? $this->editUrl($articleId, $locale) : null,
                 ),
-                'state' => new StatusCell((string) $article['state'], $article['state'] === 'published' ? StatusVariant::Success : StatusVariant::Muted),
+                'state' => new StatusCell(
+                    $this->publicationStateLabel((int) $article['publication_state']),
+                    (int) $article['publication_state'] === CmsPublicationState::Published->value ? StatusVariant::Success : StatusVariant::Muted,
+                ),
                 'publishedAt' => new ScalarCell((string) ($article['published_at'] ?? '—')),
                 'updatedAt' => new ScalarCell((string) $article['updated_at']),
             ],
-            actions: $this->rowActions($articleId, $deleted, (string) $article['locale']),
+            actions: $this->rowActions($articleId, $deleted, $locale),
         );
+    }
+
+    /**
+     * Vrati lokalizovany label publication stavu z databazove hodnoty
+     */
+    private function publicationStateLabel(int $value): string
+    {
+        $state = CmsPublicationState::tryFrom($value) ?? CmsPublicationState::New;
+
+        return $this->translator->get('admin.status.' . match ($state) {
+            CmsPublicationState::New => 'new',
+            CmsPublicationState::Draft => 'draft',
+            CmsPublicationState::Published => 'published',
+        });
     }
 
     /**

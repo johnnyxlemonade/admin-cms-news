@@ -6,6 +6,7 @@ namespace Lemonade\Cms\News\Models;
 
 use Lemonade\Admin\DataGrid\Query\DataGridQuery;
 use Lemonade\Admin\DataGrid\Query\QueryPage;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Framework\Database\Model;
 use Lemonade\Framework\Database\QueryBuilder;
 
@@ -31,8 +32,7 @@ final class NewsModel extends Model
         'show_published_at',
         'show_thumbnail',
         'show_reading_time',
-        'state',
-        'published_at',
+        'show_tags',
     ];
 
     /**
@@ -50,8 +50,7 @@ final class NewsModel extends Model
             'show_published_at' => $displaySettings['show_published_at'] ? 1 : 0,
             'show_thumbnail' => $displaySettings['show_thumbnail'] ? 1 : 0,
             'show_reading_time' => $displaySettings['show_reading_time'] ? 1 : 0,
-            'state' => 'draft',
-            'published_at' => null,
+            'show_tags' => $displaySettings['show_tags'] ? 1 : 0,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -98,7 +97,7 @@ final class NewsModel extends Model
     }
 
     /**
-     * Obnovi aggregate jako draft bez automatickeho zverejneni
+     * Obnovi aggregate a vsechny jeho mutace jako draft bez automatickeho zverejneni
      */
     public function restoreDraft(int $articleId, string $now): void
     {
@@ -108,7 +107,13 @@ final class NewsModel extends Model
             ->whereRaw('deleted_at IS NOT NULL')
             ->set([
                 'deleted_at' => null,
-                'state' => 'draft',
+                'updated_at' => $now,
+            ])
+            ->update();
+        $this->translations()
+            ->where('article_id', $articleId)
+            ->set([
+                'publication_state' => CmsPublicationState::Draft->value,
                 'published_at' => null,
                 'updated_at' => $now,
             ])
@@ -131,6 +136,7 @@ final class NewsModel extends Model
                 'show_published_at',
                 'show_thumbnail',
                 'show_reading_time',
+                'show_tags',
             ])
             ->where('id', $articleId)
             ->first();
@@ -153,6 +159,7 @@ final class NewsModel extends Model
                 'show_published_at' => $displaySettings['show_published_at'] ? 1 : 0,
                 'show_thumbnail' => $displaySettings['show_thumbnail'] ? 1 : 0,
                 'show_reading_time' => $displaySettings['show_reading_time'] ? 1 : 0,
+                'show_tags' => $displaySettings['show_tags'] ? 1 : 0,
                 'updated_at' => $now,
             ])
             ->update();
@@ -175,6 +182,8 @@ final class NewsModel extends Model
                 'summary',
                 'content',
                 'meta_description',
+                'publication_state',
+                'published_at',
             ])
             ->where('article_id', $articleId)
             ->where('locale', $locale)
@@ -187,7 +196,7 @@ final class NewsModel extends Model
     public function saveTranslation(
         int $articleId,
         string $locale,
-        string $title,
+        ?string $title,
         ?string $pageTitle,
         ?string $slug,
         ?string $summary,
@@ -196,8 +205,8 @@ final class NewsModel extends Model
         string $now,
     ): int {
         $sql = implode(' ', [
-            'INSERT INTO cms_news_article_translation(article_id,locale,title,page_title,slug,summary,content,meta_description,created_at,updated_at)',
-            'VALUES (?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO cms_news_article_translation(article_id,locale,title,page_title,slug,summary,content,meta_description,publication_state,published_at,created_at,updated_at)',
+            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
             'ON DUPLICATE KEY UPDATE',
             'id=LAST_INSERT_ID(id),',
             'title=VALUES(title),',
@@ -219,6 +228,8 @@ final class NewsModel extends Model
                 $summary,
                 $content,
                 $metaDescription,
+                CmsPublicationState::New->value,
+                null,
                 $now,
                 $now,
             ],
@@ -302,28 +313,46 @@ final class NewsModel extends Model
     }
 
     /**
-     * Vrati publication metadata clanku
+     * Vrati publication metadata jedne lokalizovane mutace clanku
      *
      * @return array<string,mixed>|null
      */
-    public function publication(int $articleId): ?array
+    public function publication(int $articleId, string $locale): ?array
     {
-        return $this->query()
-            ->select(['state', 'published_at'])
-            ->where('id', $articleId)
+        return $this->translations()
+            ->select(['publication_state', 'published_at'])
+            ->where('article_id', $articleId)
+            ->where('locale', $locale)
             ->first();
     }
 
     /**
-     * Ulozi zmeneny publication lifecycle root aggregate
+     * Ulozi zmeneny publication lifecycle lokalizovane mutace
      */
-    public function savePublication(int $articleId, string $state, ?string $publishedAt, string $now): void
+    public function savePublication(int $articleId, string $locale, CmsPublicationState $state, ?string $publishedAt, string $now): void
     {
-        $this->query()
-            ->where('id', $articleId)
+        $this->translations()
+            ->where('article_id', $articleId)
+            ->where('locale', $locale)
             ->set([
-                'state' => $state,
+                'publication_state' => $state->value,
                 'published_at' => $publishedAt,
+                'updated_at' => $now,
+            ])
+            ->update();
+    }
+
+    /**
+     * Povysi ulozenou nepublikovanou mutaci na draft
+     */
+    public function promoteTranslationToDraft(int $articleId, string $locale, string $now): void
+    {
+        $this->translations()
+            ->where('article_id', $articleId)
+            ->where('locale', $locale)
+            ->where('publication_state !=', CmsPublicationState::Published->value)
+            ->set([
+                'publication_state' => CmsPublicationState::Draft->value,
                 'updated_at' => $now,
             ])
             ->update();
@@ -340,9 +369,9 @@ final class NewsModel extends Model
         $total = $this->dataGridQuery($query, $locale)->countAllResults();
         $sorts = [
             'title' => 't.title',
-            'publishedAt' => 'a.published_at',
+            'publishedAt' => 't.published_at',
             'updatedAt' => 'a.updated_at',
-            'state' => 'a.state',
+            'state' => 't.publication_state',
         ];
         $sort = $sorts[$query->sortKey()] ?? $sorts['publishedAt'];
         $direction = $query->sortDirection() === 'asc' ? 'ASC' : 'DESC';
@@ -350,8 +379,8 @@ final class NewsModel extends Model
         $articles = $this->dataGridQuery($query, $locale)
             ->select([
                 'a.id',
-                'a.state',
-                'a.published_at',
+                't.publication_state',
+                't.published_at',
                 'a.updated_at',
                 'a.deleted_at',
                 't.locale',
@@ -388,8 +417,7 @@ final class NewsModel extends Model
                 'show_published_at',
                 'show_thumbnail',
                 'show_reading_time',
-                'state',
-                'published_at',
+                'show_tags',
             ])
             ->where('id', $articleId)
             ->first();
@@ -408,6 +436,8 @@ final class NewsModel extends Model
                 'summary',
                 'content',
                 'meta_description',
+                'publication_state',
+                'published_at',
             ])
             ->where('article_id', $articleId)
             ->orderBy('locale', 'ASC')
@@ -502,8 +532,13 @@ final class NewsModel extends Model
                 [$search, $search],
             );
         }
-        if (in_array($query->filter('state'), ['draft', 'published'], true)) {
-            $builder = $builder->where('a.state', $query->filter('state'));
+        if (in_array($query->filter('state'), ['new', 'draft', 'published'], true)) {
+            $states = [
+                'new' => CmsPublicationState::New,
+                'draft' => CmsPublicationState::Draft,
+                'published' => CmsPublicationState::Published,
+            ];
+            $builder = $builder->where('t.publication_state', $states[$query->filter('state')]->value);
         }
 
         return $builder;

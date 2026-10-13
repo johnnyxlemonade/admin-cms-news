@@ -18,17 +18,11 @@ final class NewsEditorValidationSchema
     public function __construct(private readonly TranslatorInterface $translator) {}
 
     /**
-     * Vymezuje minimum pro zalozeni pojmenovaneho draftu v create modalu
+     * Ponechava create bez formulovych hodnot pro okamzite zalozeni draftu
      */
     public function forCreate(): ValidationSchema
     {
-        return ValidationSchema::create()
-            ->field('locale', $this->translator->get('news.editor.content'))
-                ->required($this->translator->get('news.validation.locale_required'))
-            ->field('title', $this->translator->get('news.fields.title'))
-                ->required($this->translator->get('news.validation.title_required'))
-                ->maxLength(255, $this->translator->get('news.validation.title_max_length'))
-            ->end();
+        return ValidationSchema::create();
     }
 
     /**
@@ -41,15 +35,15 @@ final class NewsEditorValidationSchema
                 ->required($this->translator->get('news.validation.locale_required'))
             ->field('title', $this->translator->get('news.fields.title'))
                 ->required($this->translator->get('news.validation.title_required'))
-                ->maxLength(255, $this->translator->get('news.validation.title_max_length'))
+                ->maxLength(180, $this->translator->get('news.validation.title_max_length'))
             ->field('author_name', $this->translator->get('news.fields.author_name'))
                 ->maxLength(255, $this->translator->get('news.validation.author_max_length'))
             ->field('page_title', $this->translator->get('news.fields.page_title'))
-                ->maxLength(255, $this->translator->get('news.validation.page_title_max_length'))
+                ->maxLength(180, $this->translator->get('news.validation.page_title_max_length'))
             ->field('meta_description', $this->translator->get('news.fields.meta_description'))
                 ->maxLength(255, $this->translator->get('news.validation.meta_description_max_length'))
-            ->field('state', $this->translator->get('news.fields.state'))
-                ->inList(['draft', 'published'], $this->translator->get('news.validation.publication_invalid'))
+            ->field('publication_state', $this->translator->get('news.fields.publication_state'))
+                ->inList(['0', '1', '2'], $this->translator->get('news.validation.publication_invalid'))
             ->field('published_at', $this->translator->get('news.fields.published_at'))
             ->field('recommended', $this->translator->get('news.fields.recommended'))
             ->field('show_author', $this->translator->get('news.fields.show_author'))
@@ -57,6 +51,7 @@ final class NewsEditorValidationSchema
             ->field('show_published_at', $this->translator->get('news.fields.show_published_at'))
             ->field('show_thumbnail', $this->translator->get('news.fields.show_thumbnail'))
             ->field('show_reading_time', $this->translator->get('news.fields.show_reading_time'))
+            ->field('show_tags', $this->translator->get('news.fields.show_tags'))
             ->field('summary', $this->translator->get('news.fields.summary'))
             ->field('content', $this->translator->get('news.fields.content'))
             ->field('tags', $this->translator->get('news.fields.tags'))
