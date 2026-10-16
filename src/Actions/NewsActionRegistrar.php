@@ -7,22 +7,20 @@ namespace Lemonade\Cms\News\Actions;
 use Lemonade\Admin\Action\ModuleActionDefinition;
 use Lemonade\Admin\Action\ModuleActionRegistry;
 use Lemonade\Admin\Action\Presentation\ConfirmationDefinition;
-use Lemonade\Admin\Action\StandardEditorAction;
-use Lemonade\Admin\Editor\EditorDispatcher;
 
 /**
  * Pripojuje shared editor transport k create a save mutacim Aktualit
  */
 final class NewsActionRegistrar
 {
+    public const string CREATE_HANDLER = 'admin.cms.news.action.create';
+    public const string SAVE_HANDLER = 'admin.cms.news.action.save';
+
     /**
-     * Nastavuje action registry a shared dispatcher editoru
+     * Nastavuje registry definic a handler service ID
      */
     public function __construct(
         private readonly ModuleActionRegistry $actions,
-        private readonly EditorDispatcher $editors,
-        private readonly NewsDeleteAction $deleteAction,
-        private readonly NewsRestoreAction $restoreAction,
     ) {}
 
     /**
@@ -39,7 +37,7 @@ final class NewsActionRegistrar
                 labelKey: 'news.actions.create',
                 refreshGrid: true,
             ),
-            handler: StandardEditorAction::create($this->editors, $moduleCode),
+            handlerServiceId: self::CREATE_HANDLER,
         );
         $this->actions->register(
             moduleCode: $moduleCode,
@@ -48,7 +46,7 @@ final class NewsActionRegistrar
                 permission: 'cms.news.edit',
                 labelKey: 'admin.common.save',
             ),
-            handler: StandardEditorAction::save($this->editors, $moduleCode),
+            handlerServiceId: self::SAVE_HANDLER,
         );
         $this->actions->register(
             moduleCode: $moduleCode,
@@ -59,7 +57,7 @@ final class NewsActionRegistrar
                 confirmation: new ConfirmationDefinition('news.confirm.delete'),
                 refreshGrid: true,
             ),
-            handler: $this->deleteAction,
+            handlerServiceId: NewsDeleteAction::class,
         );
         $this->actions->register(
             moduleCode: $moduleCode,
@@ -70,7 +68,7 @@ final class NewsActionRegistrar
                 confirmation: new ConfirmationDefinition('news.confirm.restore'),
                 refreshGrid: true,
             ),
-            handler: $this->restoreAction,
+            handlerServiceId: NewsRestoreAction::class,
         );
     }
 }
