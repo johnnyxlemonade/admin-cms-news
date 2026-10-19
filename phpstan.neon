@@ -10,5 +10,3 @@ parameters:
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: true
     checkUninitializedProperties: true
-    excludePaths:
-        - src/Resources/views
