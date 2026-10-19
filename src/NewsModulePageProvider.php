@@ -28,20 +28,20 @@ use Lemonade\Framework\Routing\UrlGenerator;
 /**
  * Sklada indexovou stranku News managementu nad shared DataGrid transportem
  */
-final class NewsModulePageProvider implements ModuleIndexPageProviderInterface, ModuleEditorPageProviderInterface
+final readonly class NewsModulePageProvider implements ModuleIndexPageProviderInterface, ModuleEditorPageProviderInterface
 {
     /**
      * Nastavuje grid, authorization, preklady a URL pro News index
      */
     public function __construct(
-        private readonly NewsDataGrid $grid,
-        private readonly AuthorizationService $authorization,
-        private readonly TranslatorInterface $translator,
-        private readonly UrlGenerator $urls,
-        private readonly AdminModuleRouteResolver $routes,
-        private readonly NewsAdminEditorDefinitionFactory $adminEditorDefinitions,
-        private readonly AdminFileUploadComponent $files,
-        private readonly NewsModel $news,
+        private NewsDataGrid $grid,
+        private AuthorizationService $authorization,
+        private TranslatorInterface $translator,
+        private UrlGenerator $urls,
+        private AdminModuleRouteResolver $routes,
+        private NewsAdminEditorDefinitionFactory $adminEditorDefinitions,
+        private AdminFileUploadComponent $files,
+        private NewsModel $news,
     ) {}
 
     /**

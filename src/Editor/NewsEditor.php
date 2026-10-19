@@ -23,19 +23,19 @@ use Lemonade\Framework\Validation\ValidationSchema;
 /**
  * Propojuje News full-page editor s canonical lifecycle a mutacemi obsahu
  */
-final class NewsEditor implements EditorProviderInterface
+final readonly class NewsEditor implements EditorProviderInterface
 {
     /**
      * Nastavuje News persistence, mutation service, preklady a auditni identitu editoru
      */
     public function __construct(
-        private readonly NewsModel $news,
-        private readonly NewsService $service,
-        private readonly LanguageRegistry $languages,
-        private readonly LocalActorGuard $actors,
-        private readonly NewsEditorValidationSchema $validation,
-        private readonly AdminModuleRouteResolver $routes,
-        private readonly UrlGenerator $urls,
+        private NewsModel $news,
+        private NewsService $service,
+        private LanguageRegistry $languages,
+        private LocalActorGuard $actors,
+        private NewsEditorValidationSchema $validation,
+        private AdminModuleRouteResolver $routes,
+        private UrlGenerator $urls,
     ) {}
 
     /**

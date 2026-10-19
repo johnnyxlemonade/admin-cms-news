@@ -22,7 +22,7 @@ use RuntimeException;
 /**
  * Orchestrace mutaci, publication lifecycle a auditu aggregate Aktualit
  */
-final class NewsService
+final readonly class NewsService
 {
     private const MAXIMUM_SLUG_LENGTH = 180;
 
@@ -32,12 +32,12 @@ final class NewsService
      * Nastavuje persistence, content locale, canonical routy a auditovane mutace
      */
     public function __construct(
-        private readonly NewsModel $news,
-        private readonly LanguageRegistry $languages,
-        private readonly CmsRouteReservationService $routes,
-        private readonly Slugger $slugger,
-        private readonly AuthorizationService $authorization,
-        private readonly TransactionalEventProcessor $events,
+        private NewsModel $news,
+        private LanguageRegistry $languages,
+        private CmsRouteReservationService $routes,
+        private Slugger $slugger,
+        private AuthorizationService $authorization,
+        private TransactionalEventProcessor $events,
     ) {}
 
     /**

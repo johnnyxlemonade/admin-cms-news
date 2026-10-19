@@ -27,7 +27,7 @@ use Lemonade\Framework\View\ViewResourceRegistry;
 /**
  * Registruje News module contribution do sdilenych Admin a CMS registry
  */
-final class CmsNewsServiceProvider implements ServiceProviderInterface, BootableServiceProviderInterface
+final readonly class CmsNewsServiceProvider implements ServiceProviderInterface, BootableServiceProviderInterface
 {
     /**
      * Registruje DI definitions modulu

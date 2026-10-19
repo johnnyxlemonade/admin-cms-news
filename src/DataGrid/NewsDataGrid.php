@@ -19,6 +19,7 @@ use Lemonade\Admin\DataGrid\DataGridResult;
 use Lemonade\Admin\DataGrid\DataGridRowDefinition;
 use Lemonade\Admin\DataGrid\Query\DataGridQuery;
 use Lemonade\Admin\Icon\AdminIcon;
+use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
@@ -32,20 +33,21 @@ use Lemonade\Framework\Routing\UrlGenerator;
 /**
  * Promita News clanky do shared Admin DataGridu bez translation N+1 dotazu
  */
-final class NewsDataGrid implements DataGridProviderInterface
+final readonly class NewsDataGrid implements DataGridProviderInterface
 {
     /**
      * Nastavuje News persistence projekci pro DataGrid
      */
     public function __construct(
-        private readonly NewsModel $news,
-        private readonly AuthorizationService $authorization,
-        private readonly TranslatorInterface $translator,
-        private readonly ModuleActionPresentationFactory $actionPresentation,
-        private readonly AdminModuleRouteResolver $routes,
-        private readonly UrlGenerator $urls,
-        private readonly AdminFileModel $files,
-        private readonly AdminThumbnailComponent $thumbnails,
+        private NewsModel $news,
+        private AuthorizationService $authorization,
+        private TranslatorInterface $translator,
+        private ModuleActionPresentationFactory $actionPresentation,
+        private AdminModuleRouteResolver $routes,
+        private UrlGenerator $urls,
+        private AdminFileModel $files,
+        private AdminThumbnailComponent $thumbnails,
+        private LanguageRegistry $languages,
     ) {}
 
     /**
@@ -88,7 +90,7 @@ final class NewsDataGrid implements DataGridProviderInterface
                 ])),
                 new DataGridFilterDefinition('locale', new StaticSelectOptionSource(array_map(
                     fn(array $language): SelectOptionDefinition => new SelectOptionDefinition($language['code'], $language['name']),
-                    $this->news->enabledLocales(),
+                    $this->languages->enabledLocales(),
                 ))),
             ],
             defaultSortKey: 'publishedAt',
@@ -105,8 +107,7 @@ final class NewsDataGrid implements DataGridProviderInterface
      */
     public function execute(DataGridQuery $query): DataGridResult
     {
-        $locales = $this->news->enabledLocales();
-        $page = $this->news->listForDataGrid($query, $locales[0]['code'] ?? 'cs');
+        $page = $this->news->listForDataGrid($query, $this->languages->defaultLocale());
         $featuredImages = $this->files->findForEntities(
             'cms.news',
             array_map(static fn(array $article): int => (int) $article['id'], $page->items()),

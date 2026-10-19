@@ -25,14 +25,14 @@ use Lemonade\Framework\Routing\UrlGenerator;
 /**
  * Sklada full-page editor Aktualit se shared taby, fieldy a save barem
  */
-final class NewsAdminEditorDefinitionFactory
+final readonly class NewsAdminEditorDefinitionFactory
 {
     /**
      * Nastavuje generator canonical Admin URL
      */
     public function __construct(
-        private readonly UrlGenerator $urls,
-        private readonly AdminModuleRouteResolver $routes,
+        private UrlGenerator $urls,
+        private AdminModuleRouteResolver $routes,
     ) {}
 
     /**

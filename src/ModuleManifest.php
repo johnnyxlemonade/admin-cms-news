@@ -12,7 +12,7 @@ use Lemonade\Framework\Database\Migration\MigrationInterface;
 /**
  * Deklaruje optional CMS News modul a jeho schema
  */
-final class ModuleManifest implements ModuleManifestInterface, ModuleMigrationManifestInterface
+final readonly class ModuleManifest implements ModuleManifestInterface, ModuleMigrationManifestInterface
 {
     /**
      * Vrati stabilni kod News modulu

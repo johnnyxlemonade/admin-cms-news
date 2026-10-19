@@ -10,12 +10,12 @@ use Lemonade\Framework\Validation\ValidationSchema;
 /**
  * Sklada frameworkovou validaci create a update vstupu editoru Aktualit
  */
-final class NewsEditorValidationSchema
+final readonly class NewsEditorValidationSchema
 {
     /**
      * Nastavuje prekladovy zdroj chyb editorove validace
      */
-    public function __construct(private readonly TranslatorInterface $translator) {}
+    public function __construct(private TranslatorInterface $translator) {}
 
     /**
      * Ponechava create bez formulovych hodnot pro okamzite zalozeni draftu

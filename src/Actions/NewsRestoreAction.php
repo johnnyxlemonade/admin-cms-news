@@ -17,14 +17,14 @@ use Lemonade\Framework\Http\HttpStatus as HttpStatusCode;
 /**
  * Obnovuje smazanou Aktualitu jako draft pres canonical Admin action
  */
-final class NewsRestoreAction implements ModuleActionHandlerInterface
+final readonly class NewsRestoreAction implements ModuleActionHandlerInterface
 {
     /**
      * Nastavuje News lifecycle a localni identitu auditovane mutace
      */
     public function __construct(
-        private readonly NewsService $news,
-        private readonly LocalActorGuard $actors,
+        private NewsService $news,
+        private LocalActorGuard $actors,
     ) {}
 
     /**
@@ -34,7 +34,6 @@ final class NewsRestoreAction implements ModuleActionHandlerInterface
      */
     public function execute(?int $id, array $payload): ModuleActionResult
     {
-        unset($payload);
         if ($id === null) {
             throw new ModuleActionException(
                 HttpStatusCode::NOT_FOUND,

@@ -11,7 +11,7 @@ use Lemonade\Framework\Database\Schema\Schema;
 /**
  * Vytvari stabilni clanky a jejich lokalizovane obsahove mutace
  */
-final class CreateNewsArticles implements MigrationInterface
+final readonly class CreateNewsArticles implements MigrationInterface
 {
     /**
      * Vrati stabilni identifikator News schema migrace

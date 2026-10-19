@@ -11,7 +11,7 @@ use Lemonade\Admin\Action\Presentation\ConfirmationDefinition;
 /**
  * Pripojuje shared editor transport k create a save mutacim Aktualit
  */
-final class NewsActionRegistrar
+final readonly class NewsActionRegistrar
 {
     public const string CREATE_HANDLER = 'admin.cms.news.action.create';
     public const string SAVE_HANDLER = 'admin.cms.news.action.save';
@@ -20,7 +20,7 @@ final class NewsActionRegistrar
      * Nastavuje registry definic a handler service ID
      */
     public function __construct(
-        private readonly ModuleActionRegistry $actions,
+        private ModuleActionRegistry $actions,
     ) {}
 
     /**
