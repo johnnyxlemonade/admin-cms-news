@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Lemonade\Cms\News\Services;
 
 use DateTimeImmutable;
+use DomainException;
 use Lemonade\Admin\Audit\AuditActor;
-use Lemonade\Admin\Audit\AuditOperation;
-use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Event\DomainEvent;
 use Lemonade\Admin\Event\TransactionalEventCollector;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
@@ -15,6 +14,7 @@ use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
+use Lemonade\Cms\Routing\Cms\CmsRouteValidationException;
 use Lemonade\Framework\Database\Exception\DatabaseException;
 use Lemonade\Framework\Support\Slug\Slugger;
 use RuntimeException;
@@ -36,7 +36,6 @@ final readonly class NewsService
         private LanguageRegistry $languages,
         private CmsRouteReservationService $routes,
         private Slugger $slugger,
-        private AuthorizationService $authorization,
         private TransactionalEventProcessor $events,
     ) {}
 
@@ -45,13 +44,7 @@ final readonly class NewsService
      */
     public function createDraft(AuditActor $actor, string $locale): int
     {
-        $operation = new AuditOperation(
-            moduleCode: 'cms.news',
-            code: 'news.create',
-            actor: $actor,
-        );
-
-        return $this->events->execute($operation, function (TransactionalEventCollector $events) use ($locale): int {
+        return $this->events->execute($actor, function (TransactionalEventCollector $events) use ($locale): int {
             $now = date('Y-m-d H:i:s');
             $articleId = $this->news->createDraft(
                 null,
@@ -84,82 +77,88 @@ final readonly class NewsService
     }
 
     /**
-     * Ulozi zmenena root metadata bez zapisu a auditu pri no-op
+     * Ulozi metadata, jednu lokalizaci, routu, tagy a publikaci v jedne transakci
      *
-     * @param array<string,mixed> $metadata
+     * @param array<string,mixed> $data
      */
-    public function saveMetadata(AuditActor $actor, int $articleId, array $metadata): void
+    public function save(AuditActor $actor, int $articleId, array $data): void
     {
-        $this->assertArticle($articleId);
-        $prepared = $this->prepareMetadata($metadata);
-        $existing = $this->news->metadata($articleId);
-        if ($existing !== null
-            && $existing['author_name'] === $prepared['authorName']
-            && (int) $existing['recommended'] === ($prepared['recommended'] ? 1 : 0)
-            && $this->sameDisplaySettings($existing, $prepared['displaySettings'])
-        ) {
-            return;
-        }
+        $metadata = $this->prepareMetadata($data);
+        $locale = strtolower(trim((string) ($data['locale'] ?? '')));
 
-        $operation = new AuditOperation(
-            moduleCode: 'cms.news',
-            code: 'news.metadata.save',
-            actor: $actor,
-        );
-        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $prepared): void {
-            $this->news->saveMetadata(
-                $articleId,
-                $prepared['authorName'],
-                $prepared['recommended'],
-                $prepared['displaySettings'],
-                date('Y-m-d H:i:s'),
-            );
-            $events->record(new DomainEvent(
-                code: 'cms.news.updated',
-                moduleCode: 'cms.news',
-                entityType: 'cms_news_article',
-                entityKey: (string) $articleId,
-            ));
-        });
-    }
-
-    /**
-     * Ulozi mutation a pri stejnem obsahu nevytvori write ani audit
-     *
-     * @param array<string,mixed> $translation
-     */
-    public function saveTranslation(AuditActor $actor, int $articleId, array $translation): void
-    {
-        $this->assertArticle($articleId);
-        $locale = strtolower(trim((string) ($translation['locale'] ?? '')));
-        $operation = new AuditOperation(
-            moduleCode: 'cms.news',
-            code: 'news.translation.save',
-            actor: $actor,
-        );
         for ($attempt = 1; $attempt <= self::MAXIMUM_SAVE_ATTEMPTS; $attempt++) {
-            $existing = $this->news->translation($articleId, $locale);
-            $hasRoute = $this->routes->hasReservation('cms.news', $articleId, $locale);
-            $prepared = $this->prepareTranslation(
-                $translation,
-                $existing,
-                $hasRoute,
-            );
-            if ($hasRoute && $this->sameTranslation($existing, $prepared)) {
-                return;
-            }
-            $eventCode = $existing === null ? 'cms.news.translation_created' : 'cms.news.translation_updated';
             try {
-                $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $prepared, $eventCode): void {
-                    $this->savePreparedTranslation($articleId, $prepared, date('Y-m-d H:i:s'));
-                    $events->record(new DomainEvent(
-                        code: $eventCode,
-                        moduleCode: 'cms.news',
-                        entityType: 'cms_news_article',
-                        entityKey: (string) $articleId,
-                        payload: ['locale' => $prepared['locale']],
-                    ));
-                });
+                $this->events->execute(
+                    $actor,
+                    function (TransactionalEventCollector $events) use ($articleId, $data, $metadata, $locale): void {
+                        $existingMetadata = $this->news->metadataForUpdate($articleId);
+                        if ($existingMetadata === null) {
+                            throw new DomainException('news.validation.not_found');
+                        }
+                        $existingTranslation = $this->news->translationForUpdate($articleId, $locale);
+                        $hasRoute = $this->routes->hasReservation('cms.news', $articleId, $locale);
+                        $translation = $this->prepareTranslation($data, $existingTranslation, $hasRoute);
+                        $metadataChanged = !$this->sameMetadata($existingMetadata, $metadata);
+                        $translationChanged = !$hasRoute || !$this->sameTranslation($existingTranslation, $translation);
+                        [$publicationState, $publishedAt, $publicationChanged] = $this->publicationChange(
+                            $data,
+                            $existingTranslation,
+                        );
+
+                        if (!$metadataChanged && !$translationChanged && !$publicationChanged) {
+                            $events->noOp();
+
+                            return;
+                        }
+
+                        $now = date('Y-m-d H:i:s');
+                        if ($metadataChanged) {
+                            $this->news->saveMetadata(
+                                $articleId,
+                                $metadata['authorName'],
+                                $metadata['recommended'],
+                                $metadata['displaySettings'],
+                                $now,
+                            );
+                            $events->record(new DomainEvent(
+                                'cms.news.updated',
+                                'cms.news',
+                                'cms_news_article',
+                                (string) $articleId,
+                            ));
+                        }
+                        if ($translationChanged) {
+                            $this->savePreparedTranslation($articleId, $translation, $now);
+                            $events->record(new DomainEvent(
+                                $existingTranslation === null
+                                    ? 'cms.news.translation_created'
+                                    : 'cms.news.translation_updated',
+                                'cms.news',
+                                'cms_news_article',
+                                (string) $articleId,
+                                ['locale' => $locale],
+                            ));
+                        }
+                        if ($publicationChanged) {
+                            $this->news->savePublication(
+                                $articleId,
+                                $locale,
+                                $publicationState,
+                                $publishedAt,
+                                $now,
+                            );
+                            $events->record(new DomainEvent(
+                                $publicationState === CmsPublicationState::Published
+                                    ? 'cms.news.published'
+                                    : 'cms.news.unpublished',
+                                'cms.news',
+                                'cms_news_article',
+                                (string) $articleId,
+                                ['locale' => $locale],
+                            ));
+                        }
+                    },
+                );
 
                 return;
             } catch (DatabaseException $exception) {
@@ -171,45 +170,53 @@ final readonly class NewsService
     }
 
     /**
-     * Zmeni publication state pouze pro actora s cms.news.publish
+     * Normalizuje a explicitne zmeni canonical segment jedne jazykove mutace
      */
-    public function changePublication(
+    public function changeUrlSegment(
         AuditActor $actor,
         int $articleId,
         string $locale,
-        CmsPublicationState $state,
-        ?string $publishedAt,
-    ): void {
-        $this->authorization->requirePermission('cms.news.publish');
-        if ($state === CmsPublicationState::New) {
-            throw new RuntimeException('news.validation.publication_invalid');
+        string $segment,
+    ): string {
+        $locale = strtolower(trim($locale));
+        $segment = $this->slugger->slug($segment, self::MAXIMUM_SLUG_LENGTH, $locale);
+        if ($segment === '') {
+            throw new DomainException('admin.url_segment.invalid');
         }
-        $this->assertArticle($articleId);
-        $publication = $this->news->publication($articleId, $locale);
-        $resolvedPublishedAt = $state === CmsPublicationState::Published
-            ? ($publishedAt !== null && $publishedAt !== '' ? $this->publicationDateTime($publishedAt) : date('Y-m-d H:i:s'))
-            : null;
-        if ($publication !== null
-            && (int) $publication['publication_state'] === $state->value
-            && $publication['published_at'] === $resolvedPublishedAt
-        ) {
-            return;
-        }
-        $eventCode = $state === CmsPublicationState::Published ? 'cms.news.published' : 'cms.news.unpublished';
-        $operation = new AuditOperation(
-            moduleCode: 'cms.news',
-            code: 'news.publication.change',
-            actor: $actor,
+
+        return $this->events->execute(
+            $actor,
+            function (TransactionalEventCollector $events) use ($articleId, $locale, $segment): string {
+                if ($this->news->metadataForUpdate($articleId) === null) {
+                    throw new DomainException('news.validation.not_found');
+                }
+                $translation = $this->news->translationForUpdate($articleId, $locale);
+                if ($translation === null && !$this->isEnabledLocale($locale)) {
+                    throw new DomainException('news.validation.locale_invalid');
+                }
+                $currentPath = $this->routes->reservationPath('cms.news', $articleId, $locale);
+                if ($currentPath !== null && basename($currentPath) === $segment) {
+                    $events->noOp();
+
+                    return $segment;
+                }
+
+                try {
+                    $this->routes->reserveExplicit('cms.news', $articleId, $locale, $segment);
+                } catch (CmsRouteValidationException $exception) {
+                    throw $this->newsRouteValidation($exception);
+                }
+                $events->record(new DomainEvent(
+                    'cms.news.updated',
+                    'cms.news',
+                    'cms_news_article',
+                    (string) $articleId,
+                    ['locale' => $locale],
+                ));
+
+                return $segment;
+            },
         );
-        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $locale, $state, $resolvedPublishedAt, $eventCode): void {
-            $this->news->savePublication($articleId, $locale, $state, $resolvedPublishedAt, date('Y-m-d H:i:s'));
-            $events->record(new DomainEvent(
-                code: $eventCode,
-                moduleCode: 'cms.news',
-                entityType: 'cms_news_article',
-                entityKey: (string) $articleId,
-            ));
-        });
     }
 
     /**
@@ -217,20 +224,14 @@ final readonly class NewsService
      */
     public function delete(AuditActor $actor, int $articleId): void
     {
-        $this->authorization->requirePermission('cms.news.delete');
         $article = $this->news->lifecycle($articleId);
         if ($article === null) {
-            throw new RuntimeException('news.validation.not_found');
+            throw new DomainException('news.validation.not_found');
         }
         if ($article['deleted_at'] !== null) {
             return;
         }
-        $operation = new AuditOperation(
-            moduleCode: 'cms.news',
-            code: 'news.delete',
-            actor: $actor,
-        );
-        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId): void {
+        $this->events->execute($actor, function (TransactionalEventCollector $events) use ($articleId): void {
             $now = date('Y-m-d H:i:s');
             $this->news->softDelete($articleId, $now);
             $this->routes->softDeleteForTarget('cms.news', $articleId, $now);
@@ -248,20 +249,14 @@ final readonly class NewsService
      */
     public function restore(AuditActor $actor, int $articleId): void
     {
-        $this->authorization->requirePermission('cms.news.restore');
         $article = $this->news->lifecycle($articleId);
         if ($article === null) {
-            throw new RuntimeException('news.validation.not_found');
+            throw new DomainException('news.validation.not_found');
         }
         if ($article['deleted_at'] === null) {
             return;
         }
-        $operation = new AuditOperation(
-            moduleCode: 'cms.news',
-            code: 'news.restore',
-            actor: $actor,
-        );
-        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId): void {
+        $this->events->execute($actor, function (TransactionalEventCollector $events) use ($articleId): void {
             $now = date('Y-m-d H:i:s');
             $this->news->restoreDraft($articleId, $now);
             $this->routes->restoreForTarget('cms.news', $articleId, $now);
@@ -297,19 +292,19 @@ final readonly class NewsService
         $locale = strtolower(trim($translation['locale'] ?? ''));
         $title = trim($translation['title'] ?? '');
         if ($existing === null && !$this->isEnabledLocale($locale)) {
-            throw new RuntimeException('news.validation.locale_invalid');
+            throw new DomainException('news.validation.locale_invalid');
         }
         if ($title === '') {
-            throw new RuntimeException('news.validation.title_required');
+            throw new DomainException('news.validation.title_required');
         }
         if (mb_strlen($title) > 180) {
-            throw new RuntimeException('news.validation.title_max_length');
+            throw new DomainException('news.validation.title_max_length');
         }
         $baseSlug = $hasRoute
             ? null
             : $this->slugger->slug($title, self::MAXIMUM_SLUG_LENGTH, $locale);
         if ($baseSlug === '') {
-            throw new RuntimeException('news.validation.url_invalid');
+            throw new DomainException('admin.url_segment.invalid');
         }
 
         return [
@@ -347,7 +342,7 @@ final readonly class NewsService
         if ($translation['requiresRouteReservation']) {
             $baseSlug = $translation['baseSlug'];
             if ($baseSlug === null) {
-                throw new RuntimeException('news.validation.url_invalid');
+                throw new \LogicException('Prepared News translation has no canonical slug.');
             }
             $this->routes->reserveAutomatic(
                 moduleCode: 'cms.news',
@@ -406,6 +401,61 @@ final readonly class NewsService
     }
 
     /**
+     * Porovna root metadata bez persistence timestampu
+     *
+     * @param array<string,mixed> $existing
+     * @param array{authorName:string|null,recommended:bool,displaySettings:array<string,bool>} $prepared
+     */
+    private function sameMetadata(array $existing, array $prepared): bool
+    {
+        return $existing['author_name'] === $prepared['authorName']
+            && (int) $existing['recommended'] === ($prepared['recommended'] ? 1 : 0)
+            && $this->sameDisplaySettings($existing, $prepared['displaySettings']);
+    }
+
+    /**
+     * Vyhodnoti explicitne predanou zmenu publikace proti zamcene lokalizaci
+     *
+     * @param array<string,mixed> $data
+     * @param array<string,mixed>|null $existing
+     * @return array{CmsPublicationState,string|null,bool}
+     */
+    private function publicationChange(array $data, ?array $existing): array
+    {
+        $currentState = CmsPublicationState::tryFrom(
+            (int) ($existing['publication_state'] ?? CmsPublicationState::New->value),
+        ) ?? CmsPublicationState::New;
+        $currentPublishedAt = $this->nullableText($existing['published_at'] ?? null);
+        if (!array_key_exists('publication_state', $data)) {
+            return [$currentState, $currentPublishedAt, false];
+        }
+
+        $requestedState = CmsPublicationState::tryFrom((int) $data['publication_state']);
+        if ($requestedState === null) {
+            throw new DomainException('news.validation.publication_invalid');
+        }
+        if ($requestedState === CmsPublicationState::New) {
+            return [$currentState, $currentPublishedAt, false];
+        }
+
+        $publishedAtInput = trim((string) ($data['published_at'] ?? ''));
+        $publishedAt = null;
+        if ($requestedState === CmsPublicationState::Published) {
+            $publishedAt = $publishedAtInput === ''
+                ? ($currentState === CmsPublicationState::Published
+                    ? $currentPublishedAt ?? date('Y-m-d H:i:s')
+                    : date('Y-m-d H:i:s'))
+                : $this->publicationDateTime($publishedAtInput);
+        }
+
+        return [
+            $requestedState,
+            $publishedAt,
+            $requestedState !== $currentState || $publishedAt !== $currentPublishedAt,
+        ];
+    }
+
+    /**
      * Rozpozna soubezne kolize canonical routy nebo identity prekladu
      */
     private function isConcurrentSaveConflict(DatabaseException $exception): bool
@@ -415,6 +465,18 @@ final readonly class NewsService
         return str_contains($message, 'uq_cms_route_locale_path')
             || str_contains($message, 'uq_cms_route_target')
             || str_contains($message, 'uq_cms_news_article_translation_locale');
+    }
+
+    /**
+     * Prelozi shared route chybu na validacni klic Aktualit
+     */
+    private function newsRouteValidation(CmsRouteValidationException $exception): DomainException
+    {
+        return new DomainException(match ($exception->getMessage()) {
+            'cms.route.path_reserved' => 'admin.url_segment.reserved',
+            'cms.route.path_occupied' => 'admin.url_segment.occupied',
+            default => 'admin.url_segment.invalid',
+        }, previous: $exception);
     }
 
     /**
@@ -448,7 +510,7 @@ final readonly class NewsService
     {
         $datetime = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i', trim($value));
         if ($datetime === false || $datetime->format('Y-m-d\\TH:i') !== trim($value)) {
-            throw new RuntimeException('news.validation.publication_invalid');
+            throw new DomainException('news.validation.publication_invalid');
         }
 
         return $datetime->format('Y-m-d H:i:s');
@@ -464,7 +526,7 @@ final readonly class NewsService
     {
         $authorName = $this->nullableText($metadata['author_name'] ?? null);
         if ($authorName !== null && mb_strlen($authorName) > 255) {
-            throw new RuntimeException('news.validation.author_max_length');
+            throw new DomainException('news.validation.author_max_length');
         }
 
         return [
@@ -560,7 +622,7 @@ final readonly class NewsService
                 continue;
             }
             if (mb_strlen($name) > 255) {
-                throw new RuntimeException('news.validation.tag_max_length');
+                throw new DomainException('news.validation.tag_max_length');
             }
             if (!in_array($name, $tags, true)) {
                 $tags[] = $name;
@@ -568,15 +630,5 @@ final readonly class NewsService
         }
 
         return $tags;
-    }
-
-    /**
-     * Overi existenci stable root identity pred mutaci
-     */
-    private function assertArticle(int $articleId): void
-    {
-        if (!$this->news->articleExists($articleId)) {
-            throw new RuntimeException('news.validation.not_found');
-        }
     }
 }

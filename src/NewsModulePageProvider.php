@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News;
 
+use Lemonade\Admin\Action\Presentation\AdminActionFormDefinition;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\DataGrid\DataGridIndexViewModel;
 use Lemonade\Admin\DataGrid\DataGridPrimaryAction;
-use Lemonade\Admin\Editor\AdminEditor\AdminEditorFormDefinition;
-use Lemonade\Admin\Editor\AdminEditor\AdminEditorHeaderContextDefinition;
-use Lemonade\Admin\Editor\AdminEditor\AdminEditorHeaderContextItem;
-use Lemonade\Admin\Editor\AdminEditor\AdminEditorRenderContext;
+use Lemonade\Admin\Editor\AdminEditor\Header\AdminEditorHeaderContextDefinition;
+use Lemonade\Admin\Editor\AdminEditor\Header\AdminEditorHeaderContextItem;
+use Lemonade\Admin\Editor\AdminEditor\Rendering\AdminEditorRenderContext;
 use Lemonade\Admin\Editor\EditorLoaded;
 use Lemonade\Admin\Editor\Exception\EditorEntityNotFoundException;
 use Lemonade\Admin\Icon\AdminIcon;
@@ -61,7 +61,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
             ? DataGridPrimaryAction::action(
                 translationKey: 'news.actions.create',
                 icon: AdminIcon::PlusLg,
-                form: new AdminEditorFormDefinition(
+                form: new AdminActionFormDefinition(
                     id: 'news-create-draft-form',
                     action: $this->urls->route(
                         name: $this->routes->managementRouteName('news', 'store'),
@@ -144,6 +144,8 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
             $article['translations'],
             static fn(array $translation): bool => $translation['locale'] === $selected['code'],
         ));
+        $translation = $article['translations'][0] ?? [];
+        $canonicalPath = trim((string) ($translation['canonical_path'] ?? ''), '/');
         $context = $this->localeContext(
             locales: $locales,
             selectedLocale: $selected['code'],
@@ -151,7 +153,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
         );
 
         return new ModulePage(
-            view: 'cms-news::editor',
+            view: 'admin::editor',
             title: $this->translator->get('news.editor.title'),
             data: [
                 'adminEditor' => $this->adminEditorDefinitions->create(
@@ -173,8 +175,23 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                 ),
                 'adminEditorContext' => new AdminEditorRenderContext(
                     values: [
-                        'publication_state' => $article['translations'][0]['publication_state'] ?? 0,
-                        'published_at' => $article['translations'][0]['published_at'] ?? null,
+                        'title' => (string) ($translation['title'] ?? ''),
+                        'author_name' => (string) ($article['author_name'] ?? ''),
+                        'tags' => $translation['tags'] ?? [],
+                        'summary' => (string) ($translation['summary'] ?? ''),
+                        'content' => (string) ($translation['content'] ?? ''),
+                        'page_title' => (string) ($translation['page_title'] ?? ''),
+                        'meta_description' => (string) ($translation['meta_description'] ?? ''),
+                        'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
+                        'recommended' => (string) ((int) ($article['recommended'] ?? 0)),
+                        'show_author' => (string) ((int) ($article['show_author'] ?? 0)),
+                        'sharing_enabled' => (string) ((int) ($article['sharing_enabled'] ?? 0)),
+                        'show_published_at' => (string) ((int) ($article['show_published_at'] ?? 0)),
+                        'show_thumbnail' => (string) ((int) ($article['show_thumbnail'] ?? 0)),
+                        'show_reading_time' => (string) ((int) ($article['show_reading_time'] ?? 0)),
+                        'show_tags' => (string) ((int) ($article['show_tags'] ?? 0)),
+                        'publication_state' => (string) ($translation['publication_state'] ?? 0),
+                        'published_at' => (string) ($translation['published_at'] ?? ''),
                     ],
                     oldInput: $input,
                     errors: $errors,

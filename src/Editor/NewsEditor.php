@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Editor;
 
-use Lemonade\Admin\Audit\AuditActor;
+use DomainException;
 use Lemonade\Admin\Editor\Contract\EditorProviderInterface;
 use Lemonade\Admin\Editor\EditorDefinition;
 use Lemonade\Admin\Editor\EditorFieldDefinition;
@@ -14,7 +14,6 @@ use Lemonade\Admin\Editor\Exception\EditorValidationException;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
-use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Routing\UrlGenerator;
@@ -48,8 +47,8 @@ final readonly class NewsEditor implements EditorProviderInterface
             savePermission: 'cms.news.edit',
             createPermission: 'cms.news.create',
             fields: [
-                new EditorFieldDefinition(name: 'publication_state', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'published_at', type: 'text', readOnly: false, permission: null),
+                new EditorFieldDefinition(name: 'publication_state', type: 'text', readOnly: false, permission: 'cms.news.publish'),
+                new EditorFieldDefinition(name: 'published_at', type: 'text', readOnly: false, permission: 'cms.news.publish'),
                 new EditorFieldDefinition(name: 'author_name', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'recommended', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'show_author', type: 'text', readOnly: false, permission: null),
@@ -128,23 +127,9 @@ final readonly class NewsEditor implements EditorProviderInterface
     public function update(int $id, array $data): EditorSaveResult
     {
         try {
-            $actor = AuditActor::user($this->actors->requireLocalUser()->id());
-            $this->service->saveMetadata($actor, $id, $data);
-            foreach ($this->translations($data) as $translation) {
-                $this->service->saveTranslation($actor, $id, $translation);
-            }
-            $publicationState = CmsPublicationState::tryFrom((int) ($data['publication_state'] ?? -1));
-            if ($publicationState !== null && $publicationState !== CmsPublicationState::New) {
-                $publishedAt = $data['published_at'] ?? null;
-                $this->service->changePublication(
-                    $actor,
-                    $id,
-                    (string) $data['locale'],
-                    $publicationState,
-                    $publishedAt !== '' ? $publishedAt : null,
-                );
-            }
-        } catch (\RuntimeException $exception) {
+            $actor = $this->actors->requireAuditActor();
+            $this->service->save($actor, $id, $data);
+        } catch (DomainException $exception) {
             throw new EditorValidationException($exception->getMessage(), previous: $exception);
         }
 
@@ -160,10 +145,10 @@ final readonly class NewsEditor implements EditorProviderInterface
     public function create(array $data): EditorSaveResult
     {
         try {
-            $actor = AuditActor::user($this->actors->requireLocalUser()->id());
+            $actor = $this->actors->requireAuditActor();
             $locale = $this->languages->defaultLocale();
             $articleId = $this->service->createDraft($actor, $locale);
-        } catch (\RuntimeException $exception) {
+        } catch (DomainException $exception) {
             throw new EditorValidationException($exception->getMessage(), previous: $exception);
         }
 
@@ -174,28 +159,6 @@ final readonly class NewsEditor implements EditorProviderInterface
             ],
             messageKey: 'news.editor.created',
         );
-    }
-
-    /**
-     * Normalizuje aktualni content mutation pro canonical save cestu
-     *
-     * @param array<string,mixed> $data
-     * @return list<array<string,mixed>>
-     */
-    private function translations(array $data): array
-    {
-        if (trim((string) ($data['title'] ?? '')) !== '') {
-            return [[
-                'locale' => $data['locale'] ?? '',
-                'title' => $data['title'] ?? '',
-                'summary' => $data['summary'] ?? '',
-                'content' => $data['content'] ?? '',
-                'page_title' => $data['page_title'] ?? '',
-                'meta_description' => $data['meta_description'] ?? '',
-                'tags' => $data['tags'] ?? '',
-            ]];
-        }
-        return [];
     }
 
     /**

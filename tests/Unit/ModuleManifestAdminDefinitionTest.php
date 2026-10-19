@@ -9,23 +9,22 @@ use Lemonade\Admin\Icon\AdminIcon;
 use Lemonade\Admin\Module\AdminModuleRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Module\AdminNavigationGroup;
-use Lemonade\Admin\Modules\Registry\ModuleRegistry;
 use Lemonade\Admin\Navigation\AdminNavigationGroupRegistry;
 use Lemonade\Admin\Navigation\AdminNavigationItem;
-use Lemonade\Cms\News\NewsModuleDefinition;
+use Lemonade\Cms\News\ModuleManifest;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Overuje stabilni Admin identitu a oddelene publish opravneni modulu
  */
-final class NewsModuleDefinitionTest extends TestCase
+final class ModuleManifestAdminDefinitionTest extends TestCase
 {
     /**
      * Publish pravo nezavisi na edit opravneni a modul ma canonical segment
      */
     public function testDefinesIndependentPublishPermissionAndCanonicalAdminSegment(): void
     {
-        $definition = new NewsModuleDefinition();
+        $definition = new ModuleManifest();
 
         self::assertSame('cms.news', $definition->code());
         self::assertSame(AdminNavigationGroup::Content, $definition->adminMetadata()->navigationGroup);
@@ -52,7 +51,7 @@ final class NewsModuleDefinitionTest extends TestCase
      */
     public function testItDeclaresAndRegistersPresentationsForAllEmittedNewsEvents(): void
     {
-        $definition = new NewsModuleDefinition();
+        $definition = new ModuleManifest();
 
         self::assertSame([
             'created',
@@ -84,10 +83,10 @@ final class NewsModuleDefinitionTest extends TestCase
      */
     public function testItKeepsNewsNavigationActiveAcrossTheStandardLifecycle(): void
     {
-        $definition = new NewsModuleDefinition();
+        $definition = new ModuleManifest();
         $registry = new AdminModuleRegistry(new AdminNavigationGroupRegistry());
         $registry->register($definition);
-        $metadata = (new AdminModuleRouteResolver($registry, new ModuleRegistry()))
+        $metadata = (new AdminModuleRouteResolver($registry))
             ->metadata('news');
         $item = new AdminNavigationItem(
             key: 'module:' . $definition->code(),

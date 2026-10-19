@@ -7,6 +7,7 @@ namespace Lemonade\Cms\News\Actions;
 use Lemonade\Admin\Action\ModuleActionDefinition;
 use Lemonade\Admin\Action\ModuleActionRegistry;
 use Lemonade\Admin\Action\Presentation\ConfirmationDefinition;
+use Lemonade\Cms\News\ModuleManifest;
 
 /**
  * Pripojuje shared editor transport k create a save mutacim Aktualit
@@ -28,7 +29,7 @@ final readonly class NewsActionRegistrar
      */
     public function register(): void
     {
-        $moduleCode = 'cms.news';
+        $moduleCode = ModuleManifest::CODE;
         $this->actions->register(
             moduleCode: $moduleCode,
             definition: new ModuleActionDefinition(
@@ -47,6 +48,15 @@ final readonly class NewsActionRegistrar
                 labelKey: 'admin.common.save',
             ),
             handlerServiceId: self::SAVE_HANDLER,
+        );
+        $this->actions->register(
+            moduleCode: $moduleCode,
+            definition: new ModuleActionDefinition(
+                key: 'change-url',
+                permission: 'cms.news.edit',
+                labelKey: 'admin.url_segment.save',
+            ),
+            handlerServiceId: NewsChangeUrlAction::class,
         );
         $this->actions->register(
             moduleCode: $moduleCode,

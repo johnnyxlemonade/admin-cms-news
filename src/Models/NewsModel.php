@@ -143,6 +143,29 @@ final class NewsModel extends Model
     }
 
     /**
+     * Zamkne root metadata pro atomicke rozhodnuti editoroveho save
+     *
+     * @return array<string,mixed>|null
+     */
+    public function metadataForUpdate(int $articleId): ?array
+    {
+        return $this->query()
+            ->select([
+                'author_name',
+                'recommended',
+                'show_author',
+                'sharing_enabled',
+                'show_published_at',
+                'show_thumbnail',
+                'show_reading_time',
+                'show_tags',
+            ])
+            ->where('id', $articleId)
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
      * Ulozi zmenena root metadata clanku
      *
      * @param array<string,bool> $displaySettings
@@ -187,6 +210,32 @@ final class NewsModel extends Model
             ])
             ->where('article_id', $articleId)
             ->where('locale', $locale)
+            ->first();
+    }
+
+    /**
+     * Zamkne jednu lokalizovanou mutaci pro atomicky editorovy save
+     *
+     * @return array<string,mixed>|null
+     */
+    public function translationForUpdate(int $articleId, string $locale): ?array
+    {
+        return $this->translations()
+            ->select([
+                'id',
+                'article_id',
+                'locale',
+                'title',
+                'page_title',
+                'summary',
+                'content',
+                'meta_description',
+                'publication_state',
+                'published_at',
+            ])
+            ->where('article_id', $articleId)
+            ->where('locale', $locale)
+            ->lockForUpdate()
             ->first();
     }
 
@@ -428,19 +477,26 @@ final class NewsModel extends Model
 
         /** @var list<array<string,mixed>> $translations */
         $translations = $this->translations()
+            ->from('cms_news_article_translation translation')
             ->select([
-                'id',
-                'locale',
-                'title',
-                'page_title',
-                'summary',
-                'content',
-                'meta_description',
-                'publication_state',
-                'published_at',
+                'translation.id',
+                'translation.locale',
+                'translation.title',
+                'translation.page_title',
+                'translation.summary',
+                'translation.content',
+                'translation.meta_description',
+                'translation.publication_state',
+                'translation.published_at',
             ])
-            ->where('article_id', $articleId)
-            ->orderBy('locale', 'ASC')
+            ->selectRaw('route.path AS canonical_path')
+            ->join(
+                'cms_route route',
+                "route.module_code = 'cms.news' AND route.entity_id = translation.article_id AND route.locale = translation.locale",
+                'LEFT',
+            )
+            ->where('translation.article_id', $articleId)
+            ->orderBy('translation.locale', 'ASC')
             ->getArray();
         $article['translations'] = $translations;
         $tagsByTranslation = [];

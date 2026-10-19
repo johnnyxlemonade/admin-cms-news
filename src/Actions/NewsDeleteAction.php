@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Actions;
 
+use DomainException;
 use Lemonade\Admin\Action\Contract\ModuleActionHandlerInterface;
 use Lemonade\Admin\Action\Exception\ModuleActionException;
 use Lemonade\Admin\Action\ModuleActionResult;
-use Lemonade\Admin\Audit\AuditActor;
 use Lemonade\Admin\Http\AdminErrorCode;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Identity\LocalActorRequiredException;
@@ -44,7 +44,7 @@ final readonly class NewsDeleteAction implements ModuleActionHandlerInterface
 
         try {
             $this->news->delete(
-                AuditActor::user($this->actors->requireLocalUser()->id()),
+                $this->actors->requireAuditActor(),
                 $id,
             );
         } catch (LocalActorRequiredException $exception) {
@@ -53,7 +53,7 @@ final readonly class NewsDeleteAction implements ModuleActionHandlerInterface
                 AdminErrorCode::LOCAL_ACTOR_REQUIRED,
                 $exception->getMessage(),
             );
-        } catch (\RuntimeException $exception) {
+        } catch (DomainException $exception) {
             return ModuleActionResult::invalid(['_form' => $exception->getMessage()]);
         }
 
