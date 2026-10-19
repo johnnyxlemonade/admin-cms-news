@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Tests\Unit\Models;
 
+use Lemonade\Admin\DataGrid\Query\DataGridQuery;
 use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
+use Lemonade\Framework\Database\DatabaseResultInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -20,10 +22,120 @@ final class NewsPublicationContractTest extends TestCase
     public function testCreateTranslationPersistsNewState(): void
     {
         $bindings = $this->captureBindings(function (NewsModel $news): void {
-            $news->saveTranslation(7, 'cs', null, null, null, null, null, null, '2026-10-13 10:00:00');
+            $news->saveTranslation(7, 'cs', null, null, null, null, null, '2026-10-13 10:00:00');
         });
 
         self::assertContains(CmsPublicationState::New->value, $bindings);
+    }
+
+    /**
+     * Nova mutace pouziva prosty insert bez duplicitniho canonical slugu
+     */
+    public function testCreateTranslationDoesNotUseDuplicateKeyUpdate(): void
+    {
+        $capturedSql = '';
+        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
+        $driver->method('query')->willReturnCallback(
+            static function (string $sql) use (&$capturedSql): bool {
+                $capturedSql = $sql;
+
+                return true;
+            },
+        );
+        $driver->method('insert_id')->willReturn(12);
+
+        $translationId = (new NewsModel($driver))->saveTranslation(
+            7,
+            'cs',
+            'Test',
+            null,
+            null,
+            null,
+            null,
+            '2026-10-13 10:00:00',
+        );
+
+        self::assertSame(12, $translationId);
+        self::assertStringStartsWith('INSERT INTO cms_news_article_translation', $capturedSql);
+        self::assertStringNotContainsString('ON DUPLICATE KEY UPDATE', $capturedSql);
+        self::assertStringNotContainsString('slug', $capturedSql);
+    }
+
+    /**
+     * Existujici mutaci aktualizuje jen podle jeji vlastni identity
+     */
+    public function testUpdateTranslationTargetsKnownIdentity(): void
+    {
+        $capturedSql = '';
+        $capturedBindings = [];
+        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
+        $driver->method('query')->willReturnCallback(
+            static function (string $sql, array|false $bindings) use (&$capturedSql, &$capturedBindings): bool {
+                $capturedSql = $sql;
+                $capturedBindings = $bindings === false ? [] : array_values($bindings);
+
+                return true;
+            },
+        );
+
+        $translationId = (new NewsModel($driver))->saveTranslation(
+            7,
+            'cs',
+            'Test',
+            null,
+            null,
+            null,
+            null,
+            '2026-10-13 10:00:00',
+            42,
+        );
+
+        self::assertSame(42, $translationId);
+        self::assertStringStartsWith('UPDATE cms_news_article_translation', $capturedSql);
+        self::assertStringContainsString('WHERE id = ? AND article_id = ? AND locale = ?', $capturedSql);
+        self::assertSame([42, 7, 'cs'], array_slice($capturedBindings, -3));
+    }
+
+    /**
+     * DataGrid zobrazuje a vyhledava canonical cestu z cms_route
+     */
+    public function testDataGridReadsCanonicalPathFromCmsRoute(): void
+    {
+        $capturedSql = [];
+        $result = $this->createMock(DatabaseResultInterface::class);
+        $result->method('row_array')->willReturn(['numrows' => 1]);
+        $result->method('result_array')->willReturn([[
+            'id' => 7,
+            'canonical_path' => 'test',
+        ]]);
+        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
+        $driver->method('query')->willReturnCallback(
+            static function (string $sql) use (&$capturedSql, $result): DatabaseResultInterface {
+                $capturedSql[] = $sql;
+
+                return $result;
+            },
+        );
+
+        (new NewsModel($driver))->listForDataGrid(new DataGridQuery(
+            page: 1,
+            pageSize: 25,
+            sortKey: 'title',
+            sortDirection: 'asc',
+            search: 'test',
+            filters: [],
+        ), 'cs');
+
+        self::assertCount(2, $capturedSql);
+        foreach ($capturedSql as $sql) {
+            self::assertStringContainsString('LEFT JOIN cms_route route', $sql);
+            self::assertStringContainsString("route.module_code = 'cms.news'", $sql);
+            self::assertStringContainsString('route.path LIKE ?', $sql);
+        }
+        self::assertStringContainsString('route.path AS canonical_path', $capturedSql[1]);
     }
 
     /**

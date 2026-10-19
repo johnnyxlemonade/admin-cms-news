@@ -9,11 +9,12 @@
 `cms.news` code. After installation and explicit enablement, it provides News
 management at `/admin/news`.
 
-An article contains localized title, URL address, summary, content, and SEO
-metadata. Publication and media belong to the article root aggregate. Galleries
+An article contains localized title, summary, content, and SEO metadata.
+Publication and media belong to the article root aggregate. Galleries
 and attachments use shared Admin Platform file collections; this package does
 not introduce its own upload transport or storage. Canonical public URLs are
-reserved through the shared `cms_route` contract.
+reserved as locale-unique slug paths through the shared `cms_route` contract;
+they do not inherit or require a public collection path.
 
 The package does not own public frontend HTML or article rendering. The host
 application provides public presentation and enforces the module's public

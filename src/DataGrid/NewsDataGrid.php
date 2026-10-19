@@ -174,7 +174,7 @@ final class NewsDataGrid implements DataGridProviderInterface
                             shape: 'rounded',
                             presentation: 'datagrid',
                         ),
-                    secondary: (string) $article['slug'],
+                    secondary: (string) ($article['canonical_path'] ?? ''),
                     url: $editable ? $this->editUrl($articleId, $locale) : null,
                 ),
                 'state' => new StatusCell(

@@ -174,11 +174,11 @@ final class NewsModel extends Model
     {
         return $this->translations()
             ->select([
+                'id',
                 'article_id',
                 'locale',
                 'title',
                 'page_title',
-                'slug',
                 'summary',
                 'content',
                 'meta_description',
@@ -191,49 +191,50 @@ final class NewsModel extends Model
     }
 
     /**
-     * Vlozi nebo upravi jednu content mutation
+     * Vlozi nebo upravi jednu content mutation podle jeji vlastni identity
      */
     public function saveTranslation(
         int $articleId,
         string $locale,
         ?string $title,
         ?string $pageTitle,
-        ?string $slug,
         ?string $summary,
         ?string $content,
         ?string $metaDescription,
         string $now,
+        ?int $translationId = null,
     ): int {
-        $sql = implode(' ', [
-            'INSERT INTO cms_news_article_translation(article_id,locale,title,page_title,slug,summary,content,meta_description,publication_state,published_at,created_at,updated_at)',
-            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-            'ON DUPLICATE KEY UPDATE',
-            'id=LAST_INSERT_ID(id),',
-            'title=VALUES(title),',
-            'page_title=VALUES(page_title),',
-            'slug=VALUES(slug),',
-            'summary=VALUES(summary),',
-            'content=VALUES(content),',
-            'meta_description=VALUES(meta_description),',
-            'updated_at=VALUES(updated_at)',
+        if ($translationId !== null) {
+            $this->translations()
+                ->where('id', $translationId)
+                ->where('article_id', $articleId)
+                ->where('locale', $locale)
+                ->set([
+                    'title' => $title,
+                    'page_title' => $pageTitle,
+                    'summary' => $summary,
+                    'content' => $content,
+                    'meta_description' => $metaDescription,
+                    'updated_at' => $now,
+                ])
+                ->update();
+
+            return $translationId;
+        }
+
+        $this->translations()->insert([
+            'article_id' => $articleId,
+            'locale' => $locale,
+            'title' => $title,
+            'page_title' => $pageTitle,
+            'summary' => $summary,
+            'content' => $content,
+            'meta_description' => $metaDescription,
+            'publication_state' => CmsPublicationState::New->value,
+            'published_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
-        $this->db->query(
-            $sql,
-            [
-                $articleId,
-                $locale,
-                $title,
-                $pageTitle,
-                $slug,
-                $summary,
-                $content,
-                $metaDescription,
-                CmsPublicationState::New->value,
-                null,
-                $now,
-                $now,
-            ],
-        );
 
         return (int) $this->db->insert_id();
     }
@@ -385,8 +386,8 @@ final class NewsModel extends Model
                 'a.deleted_at',
                 't.locale',
                 't.title',
-                't.slug',
             ])
+            ->selectRaw('route.path AS canonical_path')
             ->orderBy($sort, $direction)
             ->orderBy('a.id', 'DESC')
             ->limit($query->pageSize(), ($query->page() - 1) * $query->pageSize())
@@ -432,7 +433,6 @@ final class NewsModel extends Model
                 'locale',
                 'title',
                 'page_title',
-                'slug',
                 'summary',
                 'content',
                 'meta_description',
@@ -521,6 +521,11 @@ final class NewsModel extends Model
             ->query()
             ->from('cms_news_article a')
             ->join('cms_news_article_translation t', 't.article_id = a.id')
+            ->join(
+                'cms_route route',
+                "route.module_code = 'cms.news' AND route.entity_id = a.id AND route.locale = t.locale",
+                'LEFT',
+            )
             ->where('t.locale', $locale);
         $builder = $query->filter('status') === 'deleted'
             ? $builder->whereRaw('a.deleted_at IS NOT NULL')
@@ -528,7 +533,7 @@ final class NewsModel extends Model
         if (trim($query->search()) !== '') {
             $search = '%' . trim($query->search()) . '%';
             $builder = $builder->whereRaw(
-                '(t.title LIKE ? OR t.slug LIKE ?)',
+                '(t.title LIKE ? OR route.path LIKE ?)',
                 [$search, $search],
             );
         }

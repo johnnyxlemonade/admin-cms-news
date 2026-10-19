@@ -52,7 +52,7 @@ final class CmsNewsServiceProvider implements ServiceProviderInterface, Bootable
     }
 
     /**
-     * Pripoji metadata, prava, verejne handlery a package resources modulu po container freeze
+     * Pripoji metadata, prava a package resources modulu po container freeze
      */
     public function boot(ContainerInterface $container): void
     {

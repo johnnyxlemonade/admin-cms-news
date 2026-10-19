@@ -49,7 +49,6 @@ final class CreateNewsArticles implements MigrationInterface
             $table->string('locale', 10)->comment('Canonical kod content locale');
             $table->string('title', 180)->nullable()->comment('Lokalizovany nadpis clanku; null u noveho draftu pred prvnim ulozenim');
             $table->string('page_title', 180)->nullable()->comment('Lokalizovany SEO titul stranky');
-            $table->string('slug', 180)->nullable()->comment('Lokalizovana URL adresa bez prefixu modulu; null pred prvnim plnym ulozenim');
             $table->text('summary')->nullable()->comment('Lokalizovany perex clanku');
             $table->longText('content')->nullable()->comment('Lokalizovany obsah clanku');
             $table->string('meta_description', 255)->nullable()->comment('Lokalizovany SEO popis stranky');
@@ -57,7 +56,6 @@ final class CreateNewsArticles implements MigrationInterface
             $table->datetime('published_at')->nullable()->comment('Okamzik verejne viditelnosti publikovane lokalizovane mutace');
             $table->timestamps();
             $table->unique(['article_id', 'locale'], 'uq_cms_news_article_translation_locale');
-            $table->unique(['locale', 'slug'], 'uq_cms_news_article_translation_slug');
             $table->index(['locale', 'title'], 'idx_cms_news_translation_title');
             $table->index(['publication_state', 'published_at'], 'idx_cms_news_translation_visibility');
             $table->foreign('article_id', 'fk_cms_news_translation_article')->references('id')->on('cms_news_article')->cascadeOnDelete()->restrictOnUpdate();

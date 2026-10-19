@@ -15,7 +15,7 @@ use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
-use Lemonade\Cms\Routing\Module\PublicModuleRoutePrefixRepositoryInterface;
+use Lemonade\Framework\Database\Exception\DatabaseException;
 use Lemonade\Framework\Support\Slug\Slugger;
 use RuntimeException;
 
@@ -24,13 +24,16 @@ use RuntimeException;
  */
 final class NewsService
 {
+    private const MAXIMUM_SLUG_LENGTH = 180;
+
+    private const MAXIMUM_SAVE_ATTEMPTS = 3;
+
     /**
-     * Nastavuje persistence, content locale, URL prefix a auditovane mutace
+     * Nastavuje persistence, content locale, canonical routy a auditovane mutace
      */
     public function __construct(
         private readonly NewsModel $news,
         private readonly LanguageRegistry $languages,
-        private readonly PublicModuleRoutePrefixRepositoryInterface $prefixes,
         private readonly CmsRouteReservationService $routes,
         private readonly Slugger $slugger,
         private readonly AuthorizationService $authorization,
@@ -62,7 +65,6 @@ final class NewsService
             $this->news->saveTranslation(
                 $articleId,
                 $locale,
-                null,
                 null,
                 null,
                 null,
@@ -130,28 +132,42 @@ final class NewsService
     {
         $this->assertArticle($articleId);
         $locale = strtolower(trim((string) ($translation['locale'] ?? '')));
-        $existing = $this->news->translation($articleId, $locale);
-        $hasRoute = $this->routes->hasReservation('cms.news', $articleId, $locale);
-        $prepared = $this->prepareTranslation($translation, $existing, $hasRoute);
-        if ($hasRoute && $this->sameTranslation($existing, $prepared)) {
-            return;
-        }
-        $eventCode = $existing === null ? 'cms.news.translation_created' : 'cms.news.translation_updated';
         $operation = new AuditOperation(
             moduleCode: 'cms.news',
             code: 'news.translation.save',
             actor: $actor,
         );
-        $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $prepared, $eventCode): void {
-            $this->savePreparedTranslation($articleId, $prepared, date('Y-m-d H:i:s'));
-            $events->record(new DomainEvent(
-                code: $eventCode,
-                moduleCode: 'cms.news',
-                entityType: 'cms_news_article',
-                entityKey: (string) $articleId,
-                payload: ['locale' => $prepared['locale']],
-            ));
-        });
+        for ($attempt = 1; $attempt <= self::MAXIMUM_SAVE_ATTEMPTS; $attempt++) {
+            $existing = $this->news->translation($articleId, $locale);
+            $hasRoute = $this->routes->hasReservation('cms.news', $articleId, $locale);
+            $prepared = $this->prepareTranslation(
+                $translation,
+                $existing,
+                $hasRoute,
+            );
+            if ($hasRoute && $this->sameTranslation($existing, $prepared)) {
+                return;
+            }
+            $eventCode = $existing === null ? 'cms.news.translation_created' : 'cms.news.translation_updated';
+            try {
+                $this->events->execute($operation, function (TransactionalEventCollector $events) use ($articleId, $prepared, $eventCode): void {
+                    $this->savePreparedTranslation($articleId, $prepared, date('Y-m-d H:i:s'));
+                    $events->record(new DomainEvent(
+                        code: $eventCode,
+                        moduleCode: 'cms.news',
+                        entityType: 'cms_news_article',
+                        entityKey: (string) $articleId,
+                        payload: ['locale' => $prepared['locale']],
+                    ));
+                });
+
+                return;
+            } catch (DatabaseException $exception) {
+                if (!$this->isConcurrentSaveConflict($exception) || $attempt === self::MAXIMUM_SAVE_ATTEMPTS) {
+                    throw $exception;
+                }
+            }
+        }
     }
 
     /**
@@ -259,17 +275,16 @@ final class NewsService
     }
 
     /**
-     * Pripravi mutation se stabilnim slugem nebo base slugem pro prvni canonical reservation
+     * Pripravi mutation a base slug pouze pro prvni canonical reservation
      *
      * @param array<string,mixed> $translation
      * @param array<string,mixed>|null $existing
      * @return array{
      *     locale:string,
+     *     translationId:int|null,
      *     title:string,
      *     pageTitle:string|null,
-     *     slug:string,
-     *     baseSlug:string,
-     *     prefix:string|null,
+     *     baseSlug:string|null,
      *     requiresRouteReservation:bool,
      *     summary:string|null,
      *     content:string|null,
@@ -290,27 +305,20 @@ final class NewsService
         if (mb_strlen($title) > 180) {
             throw new RuntimeException('news.validation.title_max_length');
         }
-        $existingSlug = $existing['slug'] ?? null;
-        $baseSlug = is_string($existingSlug) && $existingSlug !== ''
-            ? $existingSlug
-            : $this->slugger->slug($title, 180, $locale);
+        $baseSlug = $hasRoute
+            ? null
+            : $this->slugger->slug($title, self::MAXIMUM_SLUG_LENGTH, $locale);
         if ($baseSlug === '') {
             throw new RuntimeException('news.validation.url_invalid');
-        }
-        $requiresRouteReservation = !$hasRoute;
-        $prefix = $requiresRouteReservation ? $this->prefixes->prefixFor('cms.news', $locale) : null;
-        if ($requiresRouteReservation && $prefix === null) {
-            throw new RuntimeException('news.validation.locale_prefix_missing');
         }
 
         return [
             'locale' => $locale,
+            'translationId' => isset($existing['id']) ? (int) $existing['id'] : null,
             'title' => $title,
             'pageTitle' => $this->nullableText($translation['page_title'] ?? null),
-            'slug' => $baseSlug,
             'baseSlug' => $baseSlug,
-            'prefix' => $prefix,
-            'requiresRouteReservation' => $requiresRouteReservation,
+            'requiresRouteReservation' => !$hasRoute,
             'summary' => $this->nullableText($translation['summary'] ?? null),
             'content' => $this->nullableText($translation['content'] ?? null),
             'metaDescription' => $this->nullableText($translation['meta_description'] ?? null),
@@ -323,11 +331,10 @@ final class NewsService
      *
      * @param array{
      *     locale:string,
+     *     translationId:int|null,
      *     title:string,
      *     pageTitle:string|null,
-     *     slug:string,
-     *     baseSlug:string,
-     *     prefix:string|null,
+     *     baseSlug:string|null,
      *     requiresRouteReservation:bool,
      *     summary:string|null,
      *     content:string|null,
@@ -337,30 +344,29 @@ final class NewsService
      */
     private function savePreparedTranslation(int $articleId, array $translation, string $now): void
     {
-        $slug = $translation['slug'];
         if ($translation['requiresRouteReservation']) {
-            $prefix = $translation['prefix'];
-            if ($prefix === null) {
-                throw new RuntimeException('news.validation.locale_prefix_missing');
+            $baseSlug = $translation['baseSlug'];
+            if ($baseSlug === null) {
+                throw new RuntimeException('news.validation.url_invalid');
             }
-            $slug = $this->routes->reserveAutomatic(
+            $this->routes->reserveAutomatic(
                 moduleCode: 'cms.news',
                 entityId: $articleId,
                 locale: $translation['locale'],
-                prefix: $prefix,
-                baseSlug: $translation['baseSlug'],
-            )->slug();
+                baseSlug: $baseSlug,
+                maximumSlugLength: self::MAXIMUM_SLUG_LENGTH,
+            );
         }
         $translationId = $this->news->saveTranslation(
             $articleId,
             $translation['locale'],
             $translation['title'],
             $translation['pageTitle'],
-            $slug,
             $translation['summary'],
             $translation['content'],
             $translation['metaDescription'],
             $now,
+            $translation['translationId'],
         );
         if ($this->news->translationTags($articleId, $translation['locale']) !== $translation['tags']) {
             $this->news->syncTranslationTags($translationId, $translation['tags'], $now);
@@ -374,11 +380,10 @@ final class NewsService
      * @param array<string,mixed>|null $existing
      * @param array{
      *     locale:string,
+     *     translationId:int|null,
      *     title:string,
      *     pageTitle:string|null,
-     *     slug:string,
-     *     baseSlug:string,
-     *     prefix:string|null,
+     *     baseSlug:string|null,
      *     requiresRouteReservation:bool,
      *     summary:string|null,
      *     content:string|null,
@@ -391,7 +396,6 @@ final class NewsService
         return $existing !== null
             && $existing['title'] === $prepared['title']
             && $existing['page_title'] === $prepared['pageTitle']
-            && $existing['slug'] === $prepared['slug']
             && $existing['summary'] === $prepared['summary']
             && $existing['content'] === $prepared['content']
             && $existing['meta_description'] === $prepared['metaDescription']
@@ -399,6 +403,18 @@ final class NewsService
                 (int) $existing['article_id'],
                 $prepared['locale'],
             ) === $prepared['tags'];
+    }
+
+    /**
+     * Rozpozna soubezne kolize canonical routy nebo identity prekladu
+     */
+    private function isConcurrentSaveConflict(DatabaseException $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'uq_cms_route_locale_path')
+            || str_contains($message, 'uq_cms_route_target')
+            || str_contains($message, 'uq_cms_news_article_translation_locale');
     }
 
     /**
