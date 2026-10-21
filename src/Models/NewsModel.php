@@ -25,6 +25,10 @@ final class NewsModel extends Model
      * @var list<string>
      */
     protected array $allowedFields = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'owner_id',
         'author_name',
         'recommended',
         'show_author',
@@ -40,9 +44,16 @@ final class NewsModel extends Model
      *
      * @param array<string,bool> $displaySettings
      */
-    public function createDraft(?string $authorName, bool $recommended, array $displaySettings, string $now): int
-    {
+    public function createDraft(
+        int $userId,
+        ?string $authorName,
+        bool $recommended,
+        array $displaySettings,
+        string $now,
+    ): int {
         $articleId = $this->insert([
+            'created_by' => $userId,
+            'owner_id' => $userId,
             'author_name' => $authorName,
             'recommended' => $recommended ? 1 : 0,
             'show_author' => $displaySettings['show_author'] ? 1 : 0,
@@ -77,20 +88,57 @@ final class NewsModel extends Model
     {
         return $this->withDeleted()
             ->query()
-            ->select(['id', 'deleted_at'])
+            ->select(['id', 'owner_id', 'deleted_at'])
             ->where('id', $articleId)
             ->first();
     }
 
     /**
+     * Vrati aktualniho vlastnika vcetne soft-delete stavu
+     */
+    public function ownerId(int $articleId): ?int
+    {
+        $article = $this->withDeleted()
+            ->query()
+            ->select(['owner_id'])
+            ->where('id', $articleId)
+            ->first();
+
+        return $article === null || $article['owner_id'] === null
+            ? null
+            : (int) $article['owner_id'];
+    }
+
+    /**
+     * Zamkne vlastnictvi aggregate pro atomicke predani
+     *
+     * @return array{owner_id:int|null}|null
+     */
+    public function ownerForUpdate(int $articleId): ?array
+    {
+        $article = $this->withDeleted()
+            ->query()
+            ->select(['owner_id'])
+            ->where('id', $articleId)
+            ->lockForUpdate()
+            ->first();
+
+        return $article === null
+            ? null
+            : ['owner_id' => $article['owner_id'] === null ? null : (int) $article['owner_id']];
+    }
+
+    /**
      * Oznaci aggregate jako smazany bez mazani jeho translations a rout
      */
-    public function softDelete(int $articleId, string $now): void
+    public function softDelete(int $articleId, int $userId, string $now): void
     {
         $this->query()
             ->where('id', $articleId)
             ->set([
                 'deleted_at' => $now,
+                'deleted_by' => $userId,
+                'updated_by' => $userId,
                 'updated_at' => $now,
             ])
             ->update();
@@ -99,7 +147,7 @@ final class NewsModel extends Model
     /**
      * Obnovi aggregate a vsechny jeho mutace jako draft bez automatickeho zverejneni
      */
-    public function restoreDraft(int $articleId, string $now): void
+    public function restoreDraft(int $articleId, int $userId, string $now): void
     {
         $this->withDeleted()
             ->query()
@@ -107,6 +155,8 @@ final class NewsModel extends Model
             ->whereRaw('deleted_at IS NOT NULL')
             ->set([
                 'deleted_at' => null,
+                'deleted_by' => null,
+                'updated_by' => $userId,
                 'updated_at' => $now,
             ])
             ->update();
@@ -115,6 +165,37 @@ final class NewsModel extends Model
             ->set([
                 'publication_state' => CmsPublicationState::Draft->value,
                 'published_at' => null,
+                'updated_at' => $now,
+            ])
+            ->update();
+    }
+
+    /**
+     * Aktualizuje posledniho uzivatele pouze po skutecne zmene aggregate
+     */
+    public function touchUpdatedBy(int $articleId, int $userId, string $now): void
+    {
+        $this->withDeleted()
+            ->query()
+            ->where('id', $articleId)
+            ->set([
+                'updated_by' => $userId,
+                'updated_at' => $now,
+            ])
+            ->update();
+    }
+
+    /**
+     * Preda vlastnictvi a zachova puvodniho tvurce
+     */
+    public function transferOwner(int $articleId, int $ownerId, int $userId, string $now): void
+    {
+        $this->withDeleted()
+            ->query()
+            ->where('id', $articleId)
+            ->set([
+                'owner_id' => $ownerId,
+                'updated_by' => $userId,
                 'updated_at' => $now,
             ])
             ->update();
@@ -413,10 +494,13 @@ final class NewsModel extends Model
      *
      * @return QueryPage<array<string,mixed>>
      */
-    public function listForDataGrid(DataGridQuery $query, string $defaultLocale): QueryPage
-    {
+    public function listForDataGrid(
+        DataGridQuery $query,
+        string $defaultLocale,
+        ?int $ownerId = null,
+    ): QueryPage {
         $locale = $query->filter('locale') ?? $defaultLocale;
-        $total = $this->dataGridQuery($query, $locale)->countAllResults();
+        $total = $this->dataGridQuery($query, $locale, $ownerId)->countAllResults();
         $sorts = [
             'title' => 't.title',
             'publishedAt' => 't.published_at',
@@ -426,9 +510,14 @@ final class NewsModel extends Model
         $sort = $sorts[$query->sortKey()] ?? $sorts['publishedAt'];
         $direction = $query->sortDirection() === 'asc' ? 'ASC' : 'DESC';
         /** @var list<array<string,mixed>> $articles */
-        $articles = $this->dataGridQuery($query, $locale)
+        $articles = $this->dataGridQuery($query, $locale, $ownerId)
             ->select([
                 'a.id',
+                'a.owner_id',
+                'a.created_at',
+                'a.created_by',
+                'a.updated_by',
+                'a.deleted_by',
                 't.publication_state',
                 't.published_at',
                 'a.updated_at',
@@ -437,6 +526,10 @@ final class NewsModel extends Model
                 't.title',
             ])
             ->selectRaw('route.path AS canonical_path')
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', creator.first_name, creator.last_name)), ''), creator.email, '—') AS created_by_name")
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', updater.first_name, updater.last_name)), ''), updater.email, '—') AS updated_by_name")
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', deleter.first_name, deleter.last_name)), ''), deleter.email, '—') AS deleted_by_name")
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', owner.first_name, owner.last_name)), ''), owner.email, '—') AS owner_name")
             ->orderBy($sort, $direction)
             ->orderBy('a.id', 'DESC')
             ->limit($query->pageSize(), ($query->page() - 1) * $query->pageSize())
@@ -460,6 +553,13 @@ final class NewsModel extends Model
         $article = $this->query()
             ->select([
                 'id',
+                'created_by',
+                'updated_by',
+                'deleted_by',
+                'owner_id',
+                'created_at',
+                'updated_at',
+                'deleted_at',
                 'author_name',
                 'recommended',
                 'show_author',
@@ -469,6 +569,10 @@ final class NewsModel extends Model
                 'show_reading_time',
                 'show_tags',
             ])
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', (SELECT first_name FROM system_user WHERE id = cms_news_article.created_by), (SELECT last_name FROM system_user WHERE id = cms_news_article.created_by))), ''), (SELECT email FROM system_user WHERE id = cms_news_article.created_by), '—') AS created_by_name")
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', (SELECT first_name FROM system_user WHERE id = cms_news_article.updated_by), (SELECT last_name FROM system_user WHERE id = cms_news_article.updated_by))), ''), (SELECT email FROM system_user WHERE id = cms_news_article.updated_by), '—') AS updated_by_name")
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', (SELECT first_name FROM system_user WHERE id = cms_news_article.deleted_by), (SELECT last_name FROM system_user WHERE id = cms_news_article.deleted_by))), ''), (SELECT email FROM system_user WHERE id = cms_news_article.deleted_by), '—') AS deleted_by_name")
+            ->selectRaw("COALESCE(NULLIF(TRIM(CONCAT_WS(' ', (SELECT first_name FROM system_user WHERE id = cms_news_article.owner_id), (SELECT last_name FROM system_user WHERE id = cms_news_article.owner_id))), ''), (SELECT email FROM system_user WHERE id = cms_news_article.owner_id), '—') AS owner_name")
             ->where('id', $articleId)
             ->first();
         if ($article === null) {
@@ -598,7 +702,7 @@ final class NewsModel extends Model
     /**
      * Sestavi DataGrid projection omezenou lokalizaci, stavem a hledanim
      */
-    private function dataGridQuery(DataGridQuery $query, string $locale): QueryBuilder
+    private function dataGridQuery(DataGridQuery $query, string $locale, ?int $ownerId): QueryBuilder
     {
         $builder = $this->withDeleted()
             ->query()
@@ -609,7 +713,14 @@ final class NewsModel extends Model
                 "route.module_code = 'cms.news' AND route.entity_id = a.id AND route.locale = t.locale",
                 'LEFT',
             )
+            ->join('system_user creator', 'creator.id = a.created_by', 'LEFT')
+            ->join('system_user updater', 'updater.id = a.updated_by', 'LEFT')
+            ->join('system_user deleter', 'deleter.id = a.deleted_by', 'LEFT')
+            ->join('system_user owner', 'owner.id = a.owner_id', 'LEFT')
             ->where('t.locale', $locale);
+        if ($ownerId !== null) {
+            $builder = $builder->where('a.owner_id', $ownerId);
+        }
         $builder = $query->filter('status') === 'deleted'
             ? $builder->whereRaw('a.deleted_at IS NOT NULL')
             : $builder->where('a.deleted_at', null);

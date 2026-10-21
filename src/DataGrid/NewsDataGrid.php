@@ -55,7 +55,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
      */
     public function permission(): string
     {
-        return 'cms.news.view';
+        return 'cms.news.view_own';
     }
 
     /**
@@ -69,7 +69,10 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                 new DataGridColumnDefinition('title', 'news.fields.title', 'title'),
                 new DataGridColumnDefinition('state', 'news.fields.publication_state', 'state'),
                 new DataGridColumnDefinition('publishedAt', 'news.fields.published_at', 'publishedAt'),
+                new DataGridColumnDefinition('owner', 'news.fields.owner'),
+                new DataGridColumnDefinition('createdAt', 'news.fields.created_at'),
                 new DataGridColumnDefinition('updatedAt', 'news.fields.updated_at', 'updatedAt'),
+                new DataGridColumnDefinition('deletedAt', 'news.fields.deleted_at'),
                 new DataGridColumnDefinition('actions', 'admin.common.actions'),
             ],
             searchEnabled: true,
@@ -107,7 +110,16 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
      */
     public function execute(DataGridQuery $query): DataGridResult
     {
-        $page = $this->news->listForDataGrid($query, $this->languages->defaultLocale());
+        $canViewAll = $this->authorization->hasPermission('cms.news.view');
+        $ownerId = $canViewAll ? null : $this->authorization->currentUserId();
+        if (!$canViewAll && $ownerId === null) {
+            return new DataGridResult([], $query->page(), $query->pageSize(), 0);
+        }
+        $page = $this->news->listForDataGrid(
+            $query,
+            $this->languages->defaultLocale(),
+            $ownerId,
+        );
         $featuredImages = $this->files->findForEntities(
             'cms.news',
             array_map(static fn(array $article): int => (int) $article['id'], $page->items()),
@@ -153,7 +165,12 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
             ? $this->translator->get('admin.datagrid.untitled')
             : $title;
         $deleted = $article['deleted_at'] !== null;
-        $editable = !$deleted && $this->authorization->hasPermission('cms.news.edit');
+        $ownerId = $article['owner_id'] === null ? null : (int) $article['owner_id'];
+        $editable = !$deleted && $this->authorization->canForOwner(
+            'cms.news.edit',
+            'cms.news.edit_own',
+            $ownerId,
+        );
 
         return new DataGridRowDefinition(
             id: $articleId,
@@ -183,9 +200,12 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                     (int) $article['publication_state'] === CmsPublicationState::Published->value ? StatusVariant::Success : StatusVariant::Muted,
                 ),
                 'publishedAt' => new ScalarCell((string) ($article['published_at'] ?? '—')),
-                'updatedAt' => new ScalarCell((string) $article['updated_at']),
+                'owner' => new ScalarCell((string) ($article['owner_name'] ?? '—')),
+                'createdAt' => new ScalarCell($this->actorAndDate($article['created_by_name'] ?? null, $article['created_at'] ?? null)),
+                'updatedAt' => new ScalarCell($this->actorAndDate($article['updated_by_name'] ?? null, $article['updated_at'] ?? null)),
+                'deletedAt' => new ScalarCell($this->actorAndDate($article['deleted_by_name'] ?? null, $article['deleted_at'] ?? null)),
             ],
-            actions: $this->rowActions($articleId, $deleted, $locale),
+            actions: $this->rowActions($articleId, $deleted, $locale, $ownerId),
         );
     }
 
@@ -208,10 +228,14 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
      *
      * @return list<DataGridRowActionDefinition>
      */
-    private function rowActions(int $articleId, bool $deleted, string $contentLocale): array
-    {
+    private function rowActions(
+        int $articleId,
+        bool $deleted,
+        string $contentLocale,
+        ?int $ownerId,
+    ): array {
         $actions = [];
-        if (!$deleted && $this->authorization->hasPermission('cms.news.edit')) {
+        if (!$deleted && $this->authorization->canForOwner('cms.news.edit', 'cms.news.edit_own', $ownerId)) {
             $actions[] = (new DataGridRowActionDefinition(
                 key: 'edit',
                 label: $this->translator->get('admin.common.edit'),
@@ -219,16 +243,35 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                 method: 'GET',
             ))->withIcon(AdminIcon::PencilSquare);
         }
-        $action = $this->actionPresentation->rowAction(
-            moduleCode: 'cms.news',
-            action: $deleted ? 'restore' : 'delete',
-            entityId: $articleId,
-        );
-        if ($action !== null) {
-            $actions[] = $action;
+        $canChangeLifecycle = $deleted
+            ? $this->authorization->canForOwner('cms.news.restore', 'cms.news.restore_own', $ownerId)
+            : $this->authorization->canForOwner('cms.news.delete', 'cms.news.delete_own', $ownerId);
+        if ($canChangeLifecycle) {
+            $action = $this->actionPresentation->rowAction(
+                moduleCode: 'cms.news',
+                action: $deleted ? 'restore' : 'delete',
+                entityId: $articleId,
+            );
+            if ($action !== null) {
+                $actions[] = $action;
+            }
         }
 
         return $actions;
+    }
+
+    /**
+     * Slozi auditni identitu a datum bez skryti chybejiciho uzivatele
+     */
+    private function actorAndDate(mixed $actor, mixed $date): string
+    {
+        if ($date === null || trim((string) $date) === '') {
+            return '—';
+        }
+
+        $actor = trim((string) $actor);
+
+        return ($actor === '' ? '—' : $actor) . ' · ' . (string) $date;
     }
 
     /**

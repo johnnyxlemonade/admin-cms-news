@@ -224,6 +224,7 @@ final class NewsPublicationContractTest extends TestCase
         $driver->method('insert_id')->willReturn(1);
 
         (new NewsModel($driver))->createDraft(
+            7,
             null,
             false,
             [
@@ -238,7 +239,8 @@ final class NewsPublicationContractTest extends TestCase
         );
 
         self::assertStringContainsString('show_tags', $capturedSql);
-        self::assertSame(0, $capturedBindings[7]);
+        self::assertSame([7, 7], array_slice($capturedBindings, 0, 2));
+        self::assertSame(0, $capturedBindings[9]);
     }
 
     /**

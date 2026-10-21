@@ -40,11 +40,14 @@ final readonly class NewsAdminEditorDefinitionFactory
      *
      * @param array{id:int|null,translations:list<array<string,mixed>>} $article
      * @param list<string> $tagOptions
+     * @param array<int,string> $ownerOptions
      */
     public function create(
         array $article,
         string $contentLocale,
         bool $canPublish,
+        bool $canAssignOwner = false,
+        array $ownerOptions = [],
         ?AdminEditorHeaderContextDefinition $context = null,
         ?AdminFileUploadCollection $featuredImageUpload = null,
         ?AdminFileUploadCollection $galleryUpload = null,
@@ -78,7 +81,10 @@ final readonly class NewsAdminEditorDefinitionFactory
             ->tab($this->mediaTab('attachments', 'admin.file_upload.attachments', 'admin.file_upload.attachments', $attachmentUpload));
 
         $sidebarSections = $this->sidebarSections(
+            article: $article,
             canPublish: $canPublish,
+            canAssignOwner: $canAssignOwner,
+            ownerOptions: $ownerOptions,
             featuredImageUpload: $featuredImageUpload,
         );
         if ($sidebarSections !== []) {
@@ -382,10 +388,17 @@ final readonly class NewsAdminEditorDefinitionFactory
     /**
      * Sestavi publication panel a pripraveny shared upload hlavniho obrazku
      *
+     * @param array<string,mixed> $article
+     * @param array<int,string> $ownerOptions
      * @return list<SectionBlock>
      */
-    private function sidebarSections(bool $canPublish, ?AdminFileUploadCollection $featuredImageUpload): array
-    {
+    private function sidebarSections(
+        array $article,
+        bool $canPublish,
+        bool $canAssignOwner,
+        array $ownerOptions,
+        ?AdminFileUploadCollection $featuredImageUpload,
+    ): array {
         $sections = [];
         if ($canPublish) {
             $sections[] = new SectionBlock(
@@ -412,6 +425,33 @@ final readonly class NewsAdminEditorDefinitionFactory
                 titleKey: 'news.editor.publication',
             );
         }
+        $ownershipFields = [
+            new FieldColumn(Field::readonlyDisplay('created_by_name', labelKey: 'news.fields.created_by'), md: 12),
+            new FieldColumn(Field::readonlyDisplay('created_at', labelKey: 'news.fields.created_at'), md: 12),
+            new FieldColumn(Field::readonlyDisplay('updated_by_name', labelKey: 'news.fields.updated_by'), md: 12),
+            new FieldColumn(Field::readonlyDisplay('updated_at', labelKey: 'news.fields.updated_at'), md: 12),
+        ];
+        $ownershipFields[] = new FieldColumn(
+            $canAssignOwner
+                ? Field::actionSelect(
+                    name: 'owner_id',
+                    actionKey: 'assign-owner',
+                    labelKey: 'news.fields.owner',
+                    actionLabelKey: 'news.actions.assign_owner',
+                )->options($ownerOptions)
+                : Field::readonlyDisplay('owner_name', labelKey: 'news.fields.owner'),
+            md: 12,
+        );
+        if (($article['deleted_at'] ?? null) !== null) {
+            $ownershipFields[] = new FieldColumn(Field::readonlyDisplay('deleted_by_name', labelKey: 'news.fields.deleted_by'), md: 12);
+            $ownershipFields[] = new FieldColumn(Field::readonlyDisplay('deleted_at', labelKey: 'news.fields.deleted_at'), md: 12);
+        }
+        $sections[] = new SectionBlock(
+            id: 'ownership',
+            blocks: [new FieldGroupBlock($ownershipFields)],
+            title: '',
+            titleKey: 'news.editor.ownership',
+        );
         if ($featuredImageUpload !== null) {
             $sections[] = new SectionBlock(
                 id: 'thumbnail',

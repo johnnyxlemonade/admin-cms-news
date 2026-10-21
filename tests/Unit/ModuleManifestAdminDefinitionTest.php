@@ -30,7 +30,11 @@ final class ModuleManifestAdminDefinitionTest extends TestCase
         self::assertSame(AdminNavigationGroup::Content, $definition->adminMetadata()->navigationGroup);
         self::assertSame('news', $definition->adminMetadata()->routeSegment());
         self::assertSame('news.module.description', $definition->adminMetadata()->descriptionKey());
-        self::assertSame(['cms.news.view'], $definition->permissionDefinitions()[3]->requires());
+        self::assertSame('cms.news.view_own', $definition->adminMetadata()->navigationPermission());
+        self::assertSame(
+            ['cms.news.publish_own', 'cms.news.view'],
+            $definition->permissionDefinitions()[6]->requires(),
+        );
     }
 
     /**
@@ -62,6 +66,7 @@ final class ModuleManifestAdminDefinitionTest extends TestCase
             'unpublished',
             'deleted',
             'restored',
+            'owner_transferred',
         ], array_map(static fn(\Lemonade\Admin\Audit\AuditEventDefinition $event): string => $event->suffix, $definition->auditEventDefinitions()));
 
         $registry = new AuditEventPresentationRegistry();

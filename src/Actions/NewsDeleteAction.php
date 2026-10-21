@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace Lemonade\Cms\News\Actions;
 
 use DomainException;
+use Lemonade\Admin\Action\Contract\ModuleActionAccessPolicyInterface;
 use Lemonade\Admin\Action\Contract\ModuleActionHandlerInterface;
 use Lemonade\Admin\Action\Exception\ModuleActionException;
 use Lemonade\Admin\Action\ModuleActionResult;
+use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Http\AdminErrorCode;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Identity\LocalActorRequiredException;
+use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Http\HttpStatus as HttpStatusCode;
 
 /**
  * Prevadi soft delete Aktuality na canonical Admin action response
  */
-final readonly class NewsDeleteAction implements ModuleActionHandlerInterface
+final readonly class NewsDeleteAction implements ModuleActionHandlerInterface, ModuleActionAccessPolicyInterface
 {
     /**
      * Nastavuje News lifecycle a localni identitu auditovane mutace
@@ -25,7 +28,21 @@ final readonly class NewsDeleteAction implements ModuleActionHandlerInterface
     public function __construct(
         private NewsService $news,
         private LocalActorGuard $actors,
+        private NewsModel $model,
+        private AuthorizationService $authorization,
     ) {}
+
+    /**
+     * Overi soft delete globalnim nebo vlastnickym opravnenim
+     */
+    public function accessDecision(?int $id): bool
+    {
+        return $id !== null && $this->authorization->canForOwner(
+            'cms.news.delete',
+            'cms.news.delete_own',
+            $this->model->ownerId($id),
+        );
+    }
 
     /**
      * Provede soft delete a prevede authorization chybu do Admin transportu

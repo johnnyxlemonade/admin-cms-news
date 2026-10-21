@@ -44,7 +44,7 @@ final readonly class NewsActionRegistrar
             moduleCode: $moduleCode,
             definition: new ModuleActionDefinition(
                 key: 'save',
-                permission: 'cms.news.edit',
+                permission: 'cms.news.edit_own',
                 labelKey: 'admin.common.save',
             ),
             handlerServiceId: self::SAVE_HANDLER,
@@ -53,7 +53,7 @@ final readonly class NewsActionRegistrar
             moduleCode: $moduleCode,
             definition: new ModuleActionDefinition(
                 key: 'change-url',
-                permission: 'cms.news.edit',
+                permission: 'cms.news.edit_own',
                 labelKey: 'admin.url_segment.save',
             ),
             handlerServiceId: NewsChangeUrlAction::class,
@@ -62,7 +62,7 @@ final readonly class NewsActionRegistrar
             moduleCode: $moduleCode,
             definition: new ModuleActionDefinition(
                 key: 'delete',
-                permission: 'cms.news.delete',
+                permission: 'cms.news.delete_own',
                 labelKey: 'news.actions.delete',
                 confirmation: new ConfirmationDefinition('news.confirm.delete'),
                 refreshGrid: true,
@@ -73,12 +73,21 @@ final readonly class NewsActionRegistrar
             moduleCode: $moduleCode,
             definition: new ModuleActionDefinition(
                 key: 'restore',
-                permission: 'cms.news.restore',
+                permission: 'cms.news.restore_own',
                 labelKey: 'news.actions.restore',
                 confirmation: new ConfirmationDefinition('news.confirm.restore'),
                 refreshGrid: true,
             ),
             handlerServiceId: NewsRestoreAction::class,
+        );
+        $this->actions->register(
+            moduleCode: $moduleCode,
+            definition: new ModuleActionDefinition(
+                key: 'assign-owner',
+                permission: 'cms.news.assign_owner',
+                labelKey: 'news.actions.assign_owner',
+            ),
+            handlerServiceId: NewsAssignOwnerAction::class,
         );
     }
 }

@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace Lemonade\Cms\News\Actions;
 
 use DomainException;
+use Lemonade\Admin\Action\Contract\ModuleActionAccessPolicyInterface;
 use Lemonade\Admin\Action\Contract\ModuleActionHandlerInterface;
 use Lemonade\Admin\Action\Exception\ModuleActionException;
 use Lemonade\Admin\Action\ModuleActionResult;
+use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Http\AdminErrorCode;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Identity\LocalActorRequiredException;
+use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Http\HttpStatus;
 
 /**
  * Prevadi explicitni zmenu URL Aktuality na canonical Admin action
  */
-final readonly class NewsChangeUrlAction implements ModuleActionHandlerInterface
+final readonly class NewsChangeUrlAction implements ModuleActionHandlerInterface, ModuleActionAccessPolicyInterface
 {
     /**
      * Nastavuje News routy a lokalni auditni identitu
@@ -25,7 +28,21 @@ final readonly class NewsChangeUrlAction implements ModuleActionHandlerInterface
     public function __construct(
         private NewsService $news,
         private LocalActorGuard $actors,
+        private NewsModel $model,
+        private AuthorizationService $authorization,
     ) {}
+
+    /**
+     * Overi editaci URL globalnim nebo vlastnickym opravnenim
+     */
+    public function accessDecision(?int $id): bool
+    {
+        return $id !== null && $this->authorization->canForOwner(
+            'cms.news.edit',
+            'cms.news.edit_own',
+            $this->model->ownerId($id),
+        );
+    }
 
     /**
      * Ulozi pouze URL segment a ponecha ostatni editorova data beze zmeny

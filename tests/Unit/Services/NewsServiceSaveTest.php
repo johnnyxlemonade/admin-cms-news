@@ -8,6 +8,7 @@ use Lemonade\Admin\Audit\AuditActor;
 use Lemonade\Admin\Audit\AuditLogService;
 use Lemonade\Admin\Event\DomainEventDispatcher;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
+use Lemonade\Admin\Identity\LocalUserDirectory;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\Services\NewsService;
@@ -47,7 +48,7 @@ final class NewsServiceSaveTest extends TestCase
         $service->save(AuditActor::user(7), 42, $this->payload('Changed', true, 'New title', 2));
 
         self::assertSame(1, $state->transactions);
-        self::assertCount(4, $state->domainWrites);
+        self::assertCount(5, $state->domainWrites);
         self::assertCount(3, $state->auditWrites);
     }
 
@@ -144,6 +145,70 @@ final class NewsServiceSaveTest extends TestCase
         self::assertSame([], $state->auditWrites);
     }
 
+    public function testOwnerTransferWritesAggregateAndAuditOnlyForChangedOwner(): void
+    {
+        $state = new NewsSaveState(userExists: true);
+        $service = $this->service($this->connection($state), $this->driver($state, [[['owner_id' => 3]]]));
+
+        $service->transferOwner(AuditActor::user(7), 42, 9);
+
+        self::assertSame(1, $state->transactions);
+        self::assertCount(1, $state->domainWrites);
+        self::assertStringNotContainsString('created_by', $state->domainWrites[0]);
+        self::assertCount(1, $state->auditWrites);
+        self::assertSame(
+            ['previous_owner_id' => 3, 'new_owner_id' => 9],
+            json_decode((string) $state->auditBindings[0][7], true, flags: JSON_THROW_ON_ERROR),
+        );
+    }
+
+    /**
+     * Preda osirelou Aktualitu a zachova null v auditni historii puvodniho vlastnika
+     */
+    public function testOrphanOwnerTransferWritesNullPreviousOwnerToAudit(): void
+    {
+        $state = new NewsSaveState(userExists: true);
+        $service = $this->service($this->connection($state), $this->driver($state, [[['owner_id' => null]]]));
+
+        $service->transferOwner(AuditActor::user(7), 42, 9);
+
+        self::assertCount(1, $state->domainWrites);
+        self::assertStringNotContainsString('created_by', $state->domainWrites[0]);
+        self::assertCount(1, $state->auditWrites);
+        self::assertSame(
+            ['previous_owner_id' => null, 'new_owner_id' => 9],
+            json_decode((string) $state->auditBindings[0][7], true, flags: JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testOwnerTransferToCurrentOwnerIsAuditedNoOp(): void
+    {
+        $state = new NewsSaveState(userExists: true);
+        $service = $this->service($this->connection($state), $this->driver($state, [[['owner_id' => 3]]]));
+
+        $service->transferOwner(AuditActor::user(7), 42, 3);
+
+        self::assertSame(1, $state->transactions);
+        self::assertSame([], $state->domainWrites);
+        self::assertSame([], $state->auditWrites);
+    }
+
+    public function testOwnerTransferRejectsMissingOrDeletedLocalUser(): void
+    {
+        $state = new NewsSaveState(userExists: false);
+        $service = $this->service($this->connection($state), $this->driver($state, [[['owner_id' => 3]]]));
+
+        try {
+            $service->transferOwner(AuditActor::user(7), 42, 9);
+            self::fail('Missing owner must be rejected.');
+        } catch (\DomainException $exception) {
+            self::assertSame('news.validation.owner_invalid', $exception->getMessage());
+        }
+
+        self::assertSame([], $state->domainWrites);
+        self::assertSame([], $state->auditWrites);
+    }
+
     private function service(ConnectionInterface $connection, DatabaseDriverInterface $driver): NewsService
     {
         $database = new Database($connection, $driver);
@@ -164,6 +229,7 @@ final class NewsServiceSaveTest extends TestCase
             $routes,
             new Slugger(),
             $events,
+            new LocalUserDirectory($database),
         );
     }
 
@@ -209,6 +275,10 @@ final class NewsServiceSaveTest extends TestCase
             static function (string $sql, array $bindings = []) use ($state): array {
                 self::assertTrue($state->insideTransaction, 'Canonical route must be read inside the save transaction.');
 
+                if (str_contains($sql, 'FROM system_user')) {
+                    return $state->userExists ? [['1' => 1]] : [];
+                }
+
                 if (!str_contains($sql, 'module_code = ?')) {
                     if ($state->routePath === null) {
                         return [];
@@ -248,6 +318,7 @@ final class NewsServiceSaveTest extends TestCase
                     return 1;
                 }
                 $state->auditWrites[] = $sql;
+                $state->auditBindings[] = array_values($bindings);
 
                 return 1;
             },
@@ -373,13 +444,19 @@ final class NewsSaveState
 
     public int $transactions = 0;
 
-    public function __construct(public ?string $routePath = 'old-title') {}
+    public function __construct(
+        public ?string $routePath = 'old-title',
+        public bool $userExists = false,
+    ) {}
 
     /** @var list<string> */
     public array $domainWrites = [];
 
     /** @var list<string> */
     public array $auditWrites = [];
+
+    /** @var list<list<mixed>> */
+    public array $auditBindings = [];
 
     /** @var list<string> */
     public array $routeWrites = [];

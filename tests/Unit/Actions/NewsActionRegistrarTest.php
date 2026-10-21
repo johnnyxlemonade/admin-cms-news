@@ -23,8 +23,9 @@ final class NewsActionRegistrarTest extends TestCase
 
         self::assertTrue($actions->has('cms.news', 'change-url'));
         self::assertSame(
-            'cms.news.edit',
+            'cms.news.edit_own',
             $actions->action('cms.news', 'change-url')['definition']->permission(),
         );
+        self::assertTrue($actions->has('cms.news', 'assign-owner'));
     }
 }

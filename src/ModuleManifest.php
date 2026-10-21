@@ -82,7 +82,7 @@ final readonly class ModuleManifest implements
             navigationGroup: AdminNavigationGroup::Content,
             navigationOrder: 10,
             routeSegment: 'news',
-            navigationPermission: 'cms.news.view',
+            navigationPermission: 'cms.news.view_own',
             descriptionKey: 'news.module.description',
         );
     }
@@ -109,12 +109,18 @@ final readonly class ModuleManifest implements
     public function permissionDefinitions(): array
     {
         return [
-            new PermissionDefinition('cms.news.view', self::CODE, 'news.permissions.view'),
-            new PermissionDefinition('cms.news.create', self::CODE, 'news.permissions.create', requires: ['cms.news.view']),
-            new PermissionDefinition('cms.news.edit', self::CODE, 'news.permissions.edit', requires: ['cms.news.view']),
-            new PermissionDefinition('cms.news.publish', self::CODE, 'news.permissions.publish', requires: ['cms.news.view']),
-            new PermissionDefinition('cms.news.delete', self::CODE, 'news.permissions.delete', requires: ['cms.news.view']),
-            new PermissionDefinition('cms.news.restore', self::CODE, 'news.permissions.restore', requires: ['cms.news.view']),
+            new PermissionDefinition('cms.news.view_own', self::CODE, 'news.permissions.view_own'),
+            new PermissionDefinition('cms.news.view', self::CODE, 'news.permissions.view', requires: ['cms.news.view_own']),
+            new PermissionDefinition('cms.news.create', self::CODE, 'news.permissions.create', requires: ['cms.news.view_own']),
+            new PermissionDefinition('cms.news.edit_own', self::CODE, 'news.permissions.edit_own', requires: ['cms.news.view_own']),
+            new PermissionDefinition('cms.news.edit', self::CODE, 'news.permissions.edit', requires: ['cms.news.edit_own', 'cms.news.view']),
+            new PermissionDefinition('cms.news.publish_own', self::CODE, 'news.permissions.publish_own', requires: ['cms.news.view_own']),
+            new PermissionDefinition('cms.news.publish', self::CODE, 'news.permissions.publish', requires: ['cms.news.publish_own', 'cms.news.view']),
+            new PermissionDefinition('cms.news.delete_own', self::CODE, 'news.permissions.delete_own', requires: ['cms.news.view_own']),
+            new PermissionDefinition('cms.news.delete', self::CODE, 'news.permissions.delete', requires: ['cms.news.delete_own', 'cms.news.view']),
+            new PermissionDefinition('cms.news.restore_own', self::CODE, 'news.permissions.restore_own', requires: ['cms.news.view_own']),
+            new PermissionDefinition('cms.news.restore', self::CODE, 'news.permissions.restore', requires: ['cms.news.restore_own', 'cms.news.view']),
+            new PermissionDefinition('cms.news.assign_owner', self::CODE, 'news.permissions.assign_owner', requires: ['cms.news.view_own']),
         ];
     }
 
@@ -134,6 +140,7 @@ final readonly class ModuleManifest implements
             new AuditEventDefinition('unpublished', 'news.audit.events.unpublished', AdminIcon::PauseCircle),
             new AuditEventDefinition('deleted', 'news.audit.events.deleted', AdminIcon::Trash3),
             new AuditEventDefinition('restored', 'news.audit.events.restored', AdminIcon::ArrowCounterclockwise),
+            new AuditEventDefinition('owner_transferred', 'news.audit.events.owner_transferred', AdminIcon::PersonGear),
         ];
     }
 }

@@ -10,6 +10,7 @@ use Lemonade\Admin\Audit\AuditActor;
 use Lemonade\Admin\Event\DomainEvent;
 use Lemonade\Admin\Event\TransactionalEventCollector;
 use Lemonade\Admin\Event\TransactionalEventProcessor;
+use Lemonade\Admin\Identity\LocalUserDirectory;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Models\NewsModel;
@@ -37,6 +38,7 @@ final readonly class NewsService
         private CmsRouteReservationService $routes,
         private Slugger $slugger,
         private TransactionalEventProcessor $events,
+        private LocalUserDirectory $users,
     ) {}
 
     /**
@@ -44,9 +46,10 @@ final readonly class NewsService
      */
     public function createDraft(AuditActor $actor, string $locale): int
     {
-        return $this->events->execute($actor, function (TransactionalEventCollector $events) use ($locale): int {
+        return $this->events->execute($actor, function (TransactionalEventCollector $events) use ($actor, $locale): int {
             $now = date('Y-m-d H:i:s');
             $articleId = $this->news->createDraft(
+                $this->actorUserId($actor),
                 null,
                 false,
                 $this->defaultDisplaySettings(),
@@ -90,7 +93,7 @@ final readonly class NewsService
             try {
                 $this->events->execute(
                     $actor,
-                    function (TransactionalEventCollector $events) use ($articleId, $data, $metadata, $locale): void {
+                    function (TransactionalEventCollector $events) use ($actor, $articleId, $data, $metadata, $locale): void {
                         $existingMetadata = $this->news->metadataForUpdate($articleId);
                         if ($existingMetadata === null) {
                             throw new DomainException('news.validation.not_found');
@@ -157,6 +160,11 @@ final readonly class NewsService
                                 ['locale' => $locale],
                             ));
                         }
+                        $this->news->touchUpdatedBy(
+                            $articleId,
+                            $this->actorUserId($actor),
+                            $now,
+                        );
                     },
                 );
 
@@ -186,7 +194,7 @@ final readonly class NewsService
 
         return $this->events->execute(
             $actor,
-            function (TransactionalEventCollector $events) use ($articleId, $locale, $segment): string {
+            function (TransactionalEventCollector $events) use ($actor, $articleId, $locale, $segment): string {
                 if ($this->news->metadataForUpdate($articleId) === null) {
                     throw new DomainException('news.validation.not_found');
                 }
@@ -206,6 +214,7 @@ final readonly class NewsService
                 } catch (CmsRouteValidationException $exception) {
                     throw $this->newsRouteValidation($exception);
                 }
+                $this->news->touchUpdatedBy($articleId, $this->actorUserId($actor), date('Y-m-d H:i:s'));
                 $events->record(new DomainEvent(
                     'cms.news.updated',
                     'cms.news',
@@ -231,9 +240,9 @@ final readonly class NewsService
         if ($article['deleted_at'] !== null) {
             return;
         }
-        $this->events->execute($actor, function (TransactionalEventCollector $events) use ($articleId): void {
+        $this->events->execute($actor, function (TransactionalEventCollector $events) use ($actor, $articleId): void {
             $now = date('Y-m-d H:i:s');
-            $this->news->softDelete($articleId, $now);
+            $this->news->softDelete($articleId, $this->actorUserId($actor), $now);
             $this->routes->softDeleteForTarget('cms.news', $articleId, $now);
             $events->record(new DomainEvent(
                 code: 'cms.news.deleted',
@@ -256,9 +265,9 @@ final readonly class NewsService
         if ($article['deleted_at'] === null) {
             return;
         }
-        $this->events->execute($actor, function (TransactionalEventCollector $events) use ($articleId): void {
+        $this->events->execute($actor, function (TransactionalEventCollector $events) use ($actor, $articleId): void {
             $now = date('Y-m-d H:i:s');
-            $this->news->restoreDraft($articleId, $now);
+            $this->news->restoreDraft($articleId, $this->actorUserId($actor), $now);
             $this->routes->restoreForTarget('cms.news', $articleId, $now);
             $events->record(new DomainEvent(
                 code: 'cms.news.restored',
@@ -267,6 +276,47 @@ final readonly class NewsService
                 entityKey: (string) $articleId,
             ));
         });
+    }
+
+    /**
+     * Preda vlastnictvi existujicimu lokalnimu uzivateli a zapise auditni rozdil
+     */
+    public function transferOwner(AuditActor $actor, int $articleId, int $newOwnerId): void
+    {
+        $this->events->execute(
+            $actor,
+            function (TransactionalEventCollector $events) use ($actor, $articleId, $newOwnerId): void {
+                $article = $this->news->ownerForUpdate($articleId);
+                if ($article === null) {
+                    throw new DomainException('news.validation.not_found');
+                }
+                if (!$this->users->exists($newOwnerId)) {
+                    throw new DomainException('news.validation.owner_invalid');
+                }
+                $previousOwnerId = $article['owner_id'] === null ? null : (int) $article['owner_id'];
+                if ($previousOwnerId === $newOwnerId) {
+                    $events->noOp();
+
+                    return;
+                }
+                $this->news->transferOwner(
+                    $articleId,
+                    $newOwnerId,
+                    $this->actorUserId($actor),
+                    date('Y-m-d H:i:s'),
+                );
+                $events->record(new DomainEvent(
+                    'cms.news.owner_transferred',
+                    'cms.news',
+                    'cms_news_article',
+                    (string) $articleId,
+                    [
+                        'previous_owner_id' => $previousOwnerId,
+                        'new_owner_id' => $newOwnerId,
+                    ],
+                ));
+            },
+        );
     }
 
     /**
@@ -630,5 +680,18 @@ final readonly class NewsService
         }
 
         return $tags;
+    }
+
+    /**
+     * Vrati povinne lokalni ID auditniho aktora CMS mutace
+     */
+    private function actorUserId(AuditActor $actor): int
+    {
+        $userId = $actor->userId();
+        if ($userId === null) {
+            throw new RuntimeException('News mutations require a local user actor.');
+        }
+
+        return $userId;
     }
 }

@@ -28,6 +28,10 @@ final readonly class CreateNewsArticles implements MigrationInterface
     {
         $schema->create('cms_news_article', static function (TableBlueprint $table): void {
             $table->id()->comment('Stabilni identifikator clanku pro lifecycle a budouci file usage');
+            $table->unsignedBigInteger('created_by')->nullable()->comment('Puvodni lokalni tvurce clanku');
+            $table->unsignedBigInteger('updated_by')->nullable()->comment('Posledni lokalni uzivatel, ktery aggregate skutecne zmenil');
+            $table->unsignedBigInteger('deleted_by')->nullable()->comment('Lokalni uzivatel, ktery provedl aktualni soft delete');
+            $table->unsignedBigInteger('owner_id')->nullable()->comment('Aktualni vlastnik celeho article aggregate');
             $table->string('author_name', 255)->nullable()->comment('Volitelne zobrazovane jmeno autora clanku');
             $table->boolean('recommended')->default(0)->comment('Urcuje doporuceni clanku v budoucim verejnem vystupu');
             $table->boolean('show_author')->default(1)->comment('Urcuje zobrazeni autora ve verejnem vystupu');
@@ -39,6 +43,11 @@ final readonly class CreateNewsArticles implements MigrationInterface
             $table->datetime('deleted_at')->nullable()->comment('Okamzik soft delete celeho article aggregate');
             $table->timestamps();
             $table->index(['deleted_at'], 'idx_cms_news_article_deleted');
+            $table->index(['owner_id', 'deleted_at'], 'idx_cms_news_article_owner_deleted');
+            $table->foreign('created_by', 'fk_cms_news_article_created_by')->references('id')->on('system_user')->nullOnDelete()->restrictOnUpdate();
+            $table->foreign('updated_by', 'fk_cms_news_article_updated_by')->references('id')->on('system_user')->nullOnDelete()->restrictOnUpdate();
+            $table->foreign('deleted_by', 'fk_cms_news_article_deleted_by')->references('id')->on('system_user')->nullOnDelete()->restrictOnUpdate();
+            $table->foreign('owner_id', 'fk_cms_news_article_owner')->references('id')->on('system_user')->nullOnDelete()->restrictOnUpdate();
             $table->engine('InnoDB');
             $table->charset('utf8mb4');
         }, ifNotExists: true);

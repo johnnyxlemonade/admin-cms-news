@@ -6,6 +6,7 @@ namespace Lemonade\Cms\News\Tests\Unit\DataGrid;
 
 use Lemonade\Admin\Action\ModuleActionRegistry;
 use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
+use Lemonade\Admin\Auth\AuthenticatedUser;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
 use Lemonade\Admin\DataGrid\DataGridRowDefinition;
@@ -20,6 +21,7 @@ use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\News\Actions\NewsActionRegistrar;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Models\NewsModel;
+use Lemonade\Cms\News\ModuleManifest;
 use Lemonade\Framework\Cache\CacheManager;
 use Lemonade\Framework\Cache\Store\ArrayCacheItemPool;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
@@ -31,6 +33,7 @@ use Lemonade\Framework\Image\Value\ImageFormat;
 use Lemonade\Framework\Image\Value\ImageQuality;
 use Lemonade\Framework\Image\Value\ImageVariantDefinition;
 use Lemonade\Framework\Localization\TranslatorInterface;
+use Lemonade\Framework\Routing\ControllerAction;
 use Lemonade\Framework\Routing\Router;
 use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Image\ImageUrlGenerator;
@@ -92,11 +95,65 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
+     * Own-only News scope je soucasti count i data dotazu
+     */
+    public function testOwnershipScopeFiltersCountAndRowsInDatabaseQuery(): void
+    {
+        $queries = [];
+        $count = $this->createMock(DatabaseResultInterface::class);
+        $count->method('row_array')->willReturn(['numrows' => 0]);
+        $articles = $this->createMock(DatabaseResultInterface::class);
+        $articles->method('result_array')->willReturn([]);
+        $results = [$count, $articles];
+        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver->method('protect_identifiers')->willReturnCallback(
+            static fn(string $identifier): string => $identifier,
+        );
+        $driver->method('query')->willReturnCallback(
+            static function (string $sql) use (&$queries, &$results): DatabaseResultInterface {
+                $queries[] = $sql;
+                $result = array_shift($results);
+                if (!$result instanceof DatabaseResultInterface) {
+                    throw new \LogicException('Unexpected News ownership query.');
+                }
+
+                return $result;
+            },
+        );
+
+        (new NewsModel($driver))->listForDataGrid($this->query('cs'), 'cs', 42);
+
+        self::assertCount(2, $queries);
+        self::assertStringContainsString('a.owner_id = ?', $queries[0]);
+        self::assertStringContainsString('a.owner_id = ?', $queries[1]);
+    }
+
+    /**
+     * Globalni view nezmeni edit_own na pravo upravit cizi radek
+     */
+    public function testRowActionsRespectOwnerWithGlobalViewAndOwnEdit(): void
+    {
+        $grid = $this->grid([
+            $this->articleRow(7, 'cs', 'Owned', CmsPublicationState::Draft, 0),
+            $this->articleRow(8, 'cs', 'Foreign', CmsPublicationState::Draft, 9),
+        ], ['cms.news.view', 'cms.news.edit_own']);
+
+        $rows = array_map(
+            static fn(DataGridRowDefinition $row): array => $row->toArray(),
+            $grid->execute($this->query('cs'))->items(),
+        );
+
+        self::assertSame('edit', $rows[0]['actions'][0]['key']);
+        self::assertSame([], $rows[1]['actions']);
+    }
+
+    /**
      * Vytvori News grid nad DB-free projekci jedne zvolene lokalizace
      *
      * @param list<array<string,mixed>> $articles
+     * @param list<string> $permissions
      */
-    private function grid(array $articles): NewsDataGrid
+    private function grid(array $articles, array $permissions = []): NewsDataGrid
     {
         $count = $this->createMock(DatabaseResultInterface::class);
         $count->method('row_array')->willReturn(['numrows' => count($articles)]);
@@ -120,23 +177,40 @@ final class NewsDataGridTest extends TestCase
             },
         );
         $connection = $this->createMock(ConnectionInterface::class);
+        $connection->method('select')->willReturnCallback(
+            static function (string $sql) use ($permissions): array {
+                if (!str_contains($sql, 'system_role_permission')) {
+                    return [];
+                }
+
+                return array_map(
+                    static fn(string $code): array => ['code' => $code, 'name_key' => $code, 'module_code' => 'cms.news'],
+                    $permissions,
+                );
+            },
+        );
         $database = new Database($connection, $driver);
         $languages = new LanguageRegistry(
             $database,
             new CacheManager(new ArrayCacheItemPool()),
         );
-        $authorization = new AuthorizationService(
-            $this->createMock(CurrentPrincipalProviderInterface::class),
-            $database,
-        );
+        $principal = $this->createMock(CurrentPrincipalProviderInterface::class);
+        $principal->method('currentUser')->willReturn(new AuthenticatedUser(0, 'fixture@example.test'));
+        $authorization = new AuthorizationService($principal, $database);
         $translator = $this->createMock(TranslatorInterface::class);
         $translator->method('get')->willReturnCallback(
             static fn(string $key): string => $key,
         );
-        $routes = new AdminModuleRouteResolver(
-            new AdminModuleRegistry(new AdminNavigationGroupRegistry()),
+        $moduleRegistry = new AdminModuleRegistry(new AdminNavigationGroupRegistry());
+        $moduleRegistry->register(new ModuleManifest());
+        $routes = new AdminModuleRouteResolver($moduleRegistry);
+        $router = new Router();
+        $router->getNamed(
+            'admin.content.module.edit',
+            '/admin/content/{module}/{id}/edit',
+            ControllerAction::for('TestController', 'edit'),
         );
-        $urls = new UrlGenerator(new Router());
+        $urls = new UrlGenerator($router);
         $actions = new ModuleActionRegistry();
         (new NewsActionRegistrar($actions))->register();
         $actionPresentation = new ModuleActionPresentationFactory(
@@ -194,9 +268,11 @@ final class NewsDataGridTest extends TestCase
         string $locale,
         ?string $title,
         CmsPublicationState $state,
+        int $ownerId = 0,
     ): array {
         return [
             'id' => $articleId,
+            'owner_id' => $ownerId,
             'publication_state' => $state->value,
             'published_at' => $state === CmsPublicationState::Published ? '2026-10-20 10:00:00' : null,
             'updated_at' => '2026-10-20 10:00:00',

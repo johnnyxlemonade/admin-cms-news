@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Lemonade\Cms\News\Editor;
 
 use DomainException;
+use Lemonade\Admin\Authorization\AuthorizationService;
+use Lemonade\Admin\Editor\Contract\EditorAccessPolicyInterface;
+use Lemonade\Admin\Editor\Contract\EditorFieldAccessPolicyInterface;
 use Lemonade\Admin\Editor\Contract\EditorProviderInterface;
 use Lemonade\Admin\Editor\EditorDefinition;
 use Lemonade\Admin\Editor\EditorFieldDefinition;
@@ -22,7 +25,10 @@ use Lemonade\Framework\Validation\ValidationSchema;
 /**
  * Propojuje News full-page editor s canonical lifecycle a mutacemi obsahu
  */
-final readonly class NewsEditor implements EditorProviderInterface
+final readonly class NewsEditor implements
+    EditorProviderInterface,
+    EditorAccessPolicyInterface,
+    EditorFieldAccessPolicyInterface
 {
     /**
      * Nastavuje News persistence, mutation service, preklady a auditni identitu editoru
@@ -35,6 +41,7 @@ final readonly class NewsEditor implements EditorProviderInterface
         private NewsEditorValidationSchema $validation,
         private AdminModuleRouteResolver $routes,
         private UrlGenerator $urls,
+        private AuthorizationService $authorization,
     ) {}
 
     /**
@@ -43,12 +50,12 @@ final readonly class NewsEditor implements EditorProviderInterface
     public function editorDefinition(): EditorDefinition
     {
         return new EditorDefinition(
-            loadPermission: 'cms.news.view',
-            savePermission: 'cms.news.edit',
+            loadPermission: 'cms.news.view_own',
+            savePermission: 'cms.news.edit_own',
             createPermission: 'cms.news.create',
             fields: [
-                new EditorFieldDefinition(name: 'publication_state', type: 'text', readOnly: false, permission: 'cms.news.publish'),
-                new EditorFieldDefinition(name: 'published_at', type: 'text', readOnly: false, permission: 'cms.news.publish'),
+                new EditorFieldDefinition(name: 'publication_state', type: 'text', readOnly: false, permission: 'cms.news.publish_own'),
+                new EditorFieldDefinition(name: 'published_at', type: 'text', readOnly: false, permission: 'cms.news.publish_own'),
                 new EditorFieldDefinition(name: 'author_name', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'recommended', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'show_author', type: 'text', readOnly: false, permission: null),
@@ -65,6 +72,46 @@ final readonly class NewsEditor implements EditorProviderInterface
                 new EditorFieldDefinition(name: 'meta_description', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'tags', type: 'text', readOnly: false, permission: null),
             ],
+        );
+    }
+
+    /**
+     * Overi globalni nebo vlastnicky pristup ke cteni clanku
+     */
+    public function loadAccessDecision(int $id): bool
+    {
+        return $this->authorization->canForOwner(
+            'cms.news.view',
+            'cms.news.view_own',
+            $this->news->ownerId($id),
+        );
+    }
+
+    /**
+     * Overi globalni nebo vlastnicky pristup k beznemu ulozeni clanku
+     */
+    public function saveAccessDecision(int $id): bool
+    {
+        return $this->authorization->canForOwner(
+            'cms.news.edit',
+            'cms.news.edit_own',
+            $this->news->ownerId($id),
+        );
+    }
+
+    /**
+     * Overi publish pole proti aktualnimu vlastnikovi root aggregate
+     */
+    public function fieldAccessDecision(int $id, string $field): ?bool
+    {
+        if (!in_array($field, ['publication_state', 'published_at'], true)) {
+            return null;
+        }
+
+        return $this->authorization->canForOwner(
+            'cms.news.publish',
+            'cms.news.publish_own',
+            $this->news->ownerId($id),
         );
     }
 

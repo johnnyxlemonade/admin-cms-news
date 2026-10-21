@@ -14,6 +14,7 @@ use Lemonade\Admin\Editor\AdminEditor\Rendering\AdminEditorRenderContext;
 use Lemonade\Admin\Editor\EditorLoaded;
 use Lemonade\Admin\Editor\Exception\EditorEntityNotFoundException;
 use Lemonade\Admin\Icon\AdminIcon;
+use Lemonade\Admin\Identity\LocalUserDirectory;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Page\Contract\ModuleEditorPageProviderInterface;
 use Lemonade\Admin\Page\Contract\ModuleIndexPageProviderInterface;
@@ -42,6 +43,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
         private NewsAdminEditorDefinitionFactory $adminEditorDefinitions,
         private AdminFileUploadComponent $files,
         private NewsModel $news,
+        private LocalUserDirectory $users,
     ) {}
 
     /**
@@ -49,7 +51,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
      */
     public function indexPermission(): string
     {
-        return 'cms.news.view';
+        return 'cms.news.view_own';
     }
 
     /**
@@ -151,6 +153,9 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
             selectedLocale: $selected['code'],
             articleId: $article['id'],
         );
+        $ownerId = $article['owner_id'] === null ? null : (int) $article['owner_id'];
+        $canAssignOwner = $this->authorization->hasPermission('cms.news.assign_owner')
+            && $this->authorization->canForOwner('cms.news.view', 'cms.news.view_own', $ownerId);
 
         return new ModulePage(
             view: 'admin::editor',
@@ -159,7 +164,13 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                 'adminEditor' => $this->adminEditorDefinitions->create(
                     article: $article,
                     contentLocale: $selected['code'],
-                    canPublish: $this->authorization->hasPermission('cms.news.publish'),
+                    canPublish: $this->authorization->canForOwner(
+                        'cms.news.publish',
+                        'cms.news.publish_own',
+                        $ownerId,
+                    ),
+                    canAssignOwner: $canAssignOwner,
+                    ownerOptions: $canAssignOwner ? $this->ownerOptions() : [],
                     context: $context,
                     featuredImageUpload: $this->files->collection(
                         module: 'cms.news',
@@ -192,6 +203,14 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                         'show_tags' => (string) ((int) ($article['show_tags'] ?? 0)),
                         'publication_state' => (string) ($translation['publication_state'] ?? 0),
                         'published_at' => (string) ($translation['published_at'] ?? ''),
+                        'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
+                        'created_at' => (string) ($article['created_at'] ?? ''),
+                        'updated_by_name' => (string) ($article['updated_by_name'] ?? '—'),
+                        'updated_at' => (string) ($article['updated_at'] ?? ''),
+                        'owner_name' => (string) ($article['owner_name'] ?? '—'),
+                        'owner_id' => $ownerId === null ? '' : (string) $ownerId,
+                        'deleted_by_name' => (string) ($article['deleted_by_name'] ?? '—'),
+                        'deleted_at' => (string) ($article['deleted_at'] ?? ''),
                     ],
                     oldInput: $input,
                     errors: $errors,
@@ -202,6 +221,21 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                 'locale' => $locale,
             ],
         );
+    }
+
+    /**
+     * Sestavi options nesmazanych lokalnich uzivatelu pro ownership transfer
+     *
+     * @return array<int,string>
+     */
+    private function ownerOptions(): array
+    {
+        $options = [];
+        foreach ($this->users->assignableUsers() as $user) {
+            $options[$user['id']] = $user['label'];
+        }
+
+        return $options;
     }
 
     /**
