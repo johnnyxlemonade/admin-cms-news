@@ -553,6 +553,33 @@ final class NewsModel extends Model
     }
 
     /**
+     * Vrati aktivni locale a deaktivovane locale s existujici News mutaci
+     *
+     * @return list<array{code:string,name:string}>
+     */
+    public function dataGridLocales(): array
+    {
+        /** @var list<array{code:string,name:string}> $locales */
+        $locales = QueryBuilder::make($this->db)
+            ->table('system_language language')
+            ->select(['language.code', 'language.name'])
+            ->join(
+                'cms_news_article_translation translation',
+                'translation.locale = language.code',
+                'LEFT',
+            )
+            ->whereRaw('language.enabled = 1 OR translation.id IS NOT NULL')
+            ->groupBy('language.code')
+            ->groupBy('language.name')
+            ->groupBy('language.sort_order')
+            ->orderBy('language.sort_order', 'ASC')
+            ->orderBy('language.code', 'ASC')
+            ->getArray();
+
+        return $locales;
+    }
+
+    /**
      * Vrati enabled content locale pro taby editoru a deklarovany filter
      *
      * @return list<array<string,mixed>>

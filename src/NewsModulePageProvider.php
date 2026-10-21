@@ -254,7 +254,11 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                 active: $code === $selectedLocale,
                 secondary: !$enabled
                     ? $this->translator->get('news.editor.locale.disabled')
-                    : (!$hasTranslation ? $this->translator->get('news.editor.locale.new_translation') : null),
+                    : ($hasTranslation
+                        ? $this->translator->get('news.editor.locale.existing_translation')
+                        : $this->translator->get('news.editor.locale.new_translation')),
+                code: $code,
+                translationExists: $hasTranslation,
             );
         }
 

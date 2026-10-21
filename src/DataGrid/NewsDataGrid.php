@@ -90,7 +90,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                 ])),
                 new DataGridFilterDefinition('locale', new StaticSelectOptionSource(array_map(
                     fn(array $language): SelectOptionDefinition => new SelectOptionDefinition($language['code'], $language['name']),
-                    $this->languages->enabledLocales(),
+                    $this->news->dataGridLocales(),
                 ))),
             ],
             defaultSortKey: 'publishedAt',
@@ -150,7 +150,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
         $locale = (string) $article['locale'];
         $title = trim((string) ($article['title'] ?? ''));
         $displayTitle = $title === ''
-            ? $this->translator->get('news.list.untitled_locale', ['locale' => $locale])
+            ? $this->translator->get('admin.datagrid.untitled')
             : $title;
         $deleted = $article['deleted_at'] !== null;
         $editable = !$deleted && $this->authorization->hasPermission('cms.news.edit');

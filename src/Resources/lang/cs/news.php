@@ -13,7 +13,7 @@ return [
         'create_title' => 'Nová aktualita',
         'content' => 'Obsah',
         'publication' => 'Publikace',
-        'locale' => ['label' => 'Jazyk obsahu', 'new_translation' => 'Nový překlad', 'disabled' => 'Neaktivní jazyk'],
+        'locale' => ['label' => 'Jazykové verze', 'existing_translation' => 'Existující překlad', 'new_translation' => 'Nový překlad', 'disabled' => 'Neaktivní jazyk'],
         'tabs' => ['content' => 'Obsah', 'seo' => 'SEO', 'settings' => 'Nastavení'],
         'sections' => ['localized_content' => 'Obsah', 'content' => 'Obsah článku', 'seo' => 'SEO nastavení', 'seo_help' => 'Upravte, jak se aktualita zobrazí ve výsledcích vyhledávání.', 'recommendation' => 'Doporučení', 'display' => 'Nastavení zobrazení'],
         'not_implemented' => 'Zatím neimplementováno',

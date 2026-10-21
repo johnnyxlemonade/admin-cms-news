@@ -104,6 +104,7 @@ final class NewsPublicationContractTest extends TestCase
     public function testDataGridReadsCanonicalPathFromCmsRoute(): void
     {
         $capturedSql = [];
+        $capturedBindings = [];
         $result = $this->createMock(DatabaseResultInterface::class);
         $result->method('row_array')->willReturn(['numrows' => 1]);
         $result->method('result_array')->willReturn([[
@@ -113,8 +114,9 @@ final class NewsPublicationContractTest extends TestCase
         $driver = $this->createMock(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
         $driver->method('query')->willReturnCallback(
-            static function (string $sql) use (&$capturedSql, $result): DatabaseResultInterface {
+            static function (string $sql, array $bindings = []) use (&$capturedSql, &$capturedBindings, $result): DatabaseResultInterface {
                 $capturedSql[] = $sql;
+                $capturedBindings[] = $bindings;
 
                 return $result;
             },
@@ -126,16 +128,48 @@ final class NewsPublicationContractTest extends TestCase
             sortKey: 'title',
             sortDirection: 'asc',
             search: 'test',
-            filters: [],
+            filters: ['locale' => 'en'],
         ), 'cs');
 
         self::assertCount(2, $capturedSql);
         foreach ($capturedSql as $sql) {
             self::assertStringContainsString('LEFT JOIN cms_route route', $sql);
+            self::assertStringContainsString('JOIN cms_news_article_translation t', $sql);
             self::assertStringContainsString("route.module_code = 'cms.news'", $sql);
+            self::assertStringContainsString('t.locale = ?', $sql);
             self::assertStringContainsString('route.path LIKE ?', $sql);
         }
+        self::assertContains('en', $capturedBindings[0]);
+        self::assertContains('en', $capturedBindings[1]);
         self::assertStringContainsString('route.path AS canonical_path', $capturedSql[1]);
+    }
+
+    /**
+     * Locale filtr nabizi aktivni jazyky i deaktivovany jazyk s mutaci
+     */
+    public function testDataGridLocalesIncludeDisabledLanguageWithTranslation(): void
+    {
+        $capturedSql = '';
+        $result = $this->createMock(DatabaseResultInterface::class);
+        $result->method('result_array')->willReturn([
+            ['code' => 'cs', 'name' => 'Čeština'],
+            ['code' => 'en', 'name' => 'English'],
+        ]);
+        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
+        $driver->method('query')->willReturnCallback(
+            static function (string $sql) use (&$capturedSql, $result): DatabaseResultInterface {
+                $capturedSql = $sql;
+
+                return $result;
+            },
+        );
+
+        $locales = (new NewsModel($driver))->dataGridLocales();
+
+        self::assertSame(['cs', 'en'], array_column($locales, 'code'));
+        self::assertStringContainsString('LEFT JOIN cms_news_article_translation translation', $capturedSql);
+        self::assertStringContainsString('language.enabled = 1 OR translation.id IS NOT NULL', $capturedSql);
     }
 
     /**

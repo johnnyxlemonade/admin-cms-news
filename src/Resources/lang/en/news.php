@@ -13,7 +13,7 @@ return [
         'create_title' => 'New news',
         'content' => 'Content',
         'publication' => 'Publication',
-        'locale' => ['label' => 'Content language', 'new_translation' => 'New translation', 'disabled' => 'Disabled language'],
+        'locale' => ['label' => 'Language versions', 'existing_translation' => 'Existing translation', 'new_translation' => 'New translation', 'disabled' => 'Disabled language'],
         'tabs' => ['content' => 'Content', 'seo' => 'SEO', 'settings' => 'Settings'],
         'sections' => ['localized_content' => 'Content', 'content' => 'Article content', 'seo' => 'SEO settings', 'seo_help' => 'Control how this news item appears in search results.', 'recommendation' => 'Recommendation', 'display' => 'Display settings'],
         'not_implemented' => 'Not implemented yet',
