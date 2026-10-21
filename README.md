@@ -29,8 +29,9 @@ The package requires PHP `>=8.3 <8.6`, `johnnyxlemonade/framework`, and
 composer require johnnyxlemonade/admin-cms-news:dev-main
 ```
 
-Composer package metadata discovers the module. Install and enable it through
-the host application's standard module lifecycle.
+Composer package metadata discovers and activates the module. Run the host
+application's controlled migration and permission-sync deployment flow before
+serving requests.
 
 ## Package boundaries
 
