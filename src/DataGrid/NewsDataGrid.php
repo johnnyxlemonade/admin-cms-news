@@ -8,6 +8,7 @@ use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\DataGrid\Action\DataGridRowActionDefinition;
 use Lemonade\Admin\DataGrid\Cell\ScalarCell;
+use Lemonade\Admin\DataGrid\Cell\StackedCell;
 use Lemonade\Admin\DataGrid\Cell\StatusCell;
 use Lemonade\Admin\DataGrid\Cell\StatusVariant;
 use Lemonade\Admin\DataGrid\Cell\ThumbnailCell;
@@ -68,11 +69,11 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
             columns: [
                 new DataGridColumnDefinition('title', 'news.fields.title', 'title'),
                 new DataGridColumnDefinition('state', 'news.fields.publication_state', 'state'),
-                new DataGridColumnDefinition('publishedAt', 'news.fields.published_at', 'publishedAt'),
-                new DataGridColumnDefinition('owner', 'news.fields.owner'),
-                new DataGridColumnDefinition('createdAt', 'news.fields.created_at'),
-                new DataGridColumnDefinition('updatedAt', 'news.fields.updated_at', 'updatedAt'),
-                new DataGridColumnDefinition('deletedAt', 'news.fields.deleted_at'),
+                new DataGridColumnDefinition('publishedAt', 'news.fields.published_at', 'publishedAt', 'd-none d-lg-table-cell', configurable: true),
+                new DataGridColumnDefinition('owner', 'news.fields.owner', class: 'd-none d-xl-table-cell', configurable: true),
+                new DataGridColumnDefinition('createdAt', 'news.fields.created_at', configurable: true, visibleByDefault: false),
+                new DataGridColumnDefinition('updatedAt', 'news.fields.updated_at', 'updatedAt', 'd-none d-xl-table-cell', configurable: true),
+                new DataGridColumnDefinition('deletedAt', 'news.fields.deleted_at', configurable: true, visibleByDefault: false),
                 new DataGridColumnDefinition('actions', 'admin.common.actions'),
             ],
             searchEnabled: true,
@@ -201,9 +202,9 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                 ),
                 'publishedAt' => new ScalarCell((string) ($article['published_at'] ?? '—')),
                 'owner' => new ScalarCell((string) ($article['owner_name'] ?? '—')),
-                'createdAt' => new ScalarCell($this->actorAndDate($article['created_by_name'] ?? null, $article['created_at'] ?? null)),
-                'updatedAt' => new ScalarCell($this->actorAndDate($article['updated_by_name'] ?? null, $article['updated_at'] ?? null)),
-                'deletedAt' => new ScalarCell($this->actorAndDate($article['deleted_by_name'] ?? null, $article['deleted_at'] ?? null)),
+                'createdAt' => $this->auditMetadataCell($article['created_at'] ?? null, $article['created_by_name'] ?? null),
+                'updatedAt' => $this->auditMetadataCell($article['updated_at'] ?? null, $article['updated_by_name'] ?? null),
+                'deletedAt' => $this->auditMetadataCell($article['deleted_at'] ?? null, $article['deleted_by_name'] ?? null),
             ],
             actions: $this->rowActions($articleId, $deleted, $locale, $ownerId),
         );
@@ -261,17 +262,17 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Slozi auditni identitu a datum bez skryti chybejiciho uzivatele
+     * Zobrazi auditni datum nad identitou uzivatele
      */
-    private function actorAndDate(mixed $actor, mixed $date): string
+    private function auditMetadataCell(mixed $date, mixed $actor): StackedCell
     {
-        if ($date === null || trim((string) $date) === '') {
-            return '—';
-        }
-
+        $date = trim((string) $date);
         $actor = trim((string) $actor);
 
-        return ($actor === '' ? '—' : $actor) . ' · ' . (string) $date;
+        return new StackedCell(
+            value: $date === '' ? '—' : $date,
+            secondary: $date === '' || $actor === '' ? '—' : $actor,
+        );
     }
 
     /**

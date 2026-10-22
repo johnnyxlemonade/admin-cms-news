@@ -80,6 +80,49 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
+     * Auditni metadata oddeli datum a uzivatele pro smazany zaznam
+     */
+    public function testDeletedRowUsesStackedAuditMetadata(): void
+    {
+        $article = array_replace($this->articleRow(7, 'cs', 'Deleted', CmsPublicationState::Draft), [
+            'created_at' => '2026-10-20 08:00:00',
+            'created_by_name' => 'Creator',
+            'updated_at' => '2026-10-21 09:00:00',
+            'updated_by_name' => 'Editor',
+            'deleted_at' => '2026-10-22 10:00:00',
+            'deleted_by_name' => 'Deleter',
+        ]);
+        $grid = $this->grid([$article]);
+
+        $row = $grid->execute($this->query('cs', 'deleted'))->items()[0]->toArray();
+
+        self::assertSame(['value' => '2026-10-20 08:00:00', 'secondary' => 'Creator'], $this->stackedCell($row, 'createdAt'));
+        self::assertSame(['value' => '2026-10-21 09:00:00', 'secondary' => 'Editor'], $this->stackedCell($row, 'updatedAt'));
+        self::assertSame(['value' => '2026-10-22 10:00:00', 'secondary' => 'Deleter'], $this->stackedCell($row, 'deletedAt'));
+    }
+
+    /**
+     * Obnoveny zaznam zobrazi obnovujiciho uzivatele a prazdne smazani
+     */
+    public function testRestoredRowUsesUpdatedMetadataAndDeletedFallback(): void
+    {
+        $article = array_replace($this->articleRow(7, 'cs', 'Restored', CmsPublicationState::Draft), [
+            'created_at' => '2026-10-20 08:00:00',
+            'created_by_name' => 'Creator',
+            'updated_at' => '2026-10-22 11:00:00',
+            'updated_by_name' => 'Restorer',
+            'deleted_at' => null,
+            'deleted_by_name' => null,
+        ]);
+        $grid = $this->grid([$article]);
+
+        $row = $grid->execute($this->query('cs'))->items()[0]->toArray();
+
+        self::assertSame(['value' => '2026-10-22 11:00:00', 'secondary' => 'Restorer'], $this->stackedCell($row, 'updatedAt'));
+        self::assertSame(['value' => '—', 'secondary' => '—'], $this->stackedCell($row, 'deletedAt'));
+    }
+
+    /**
      * Explicitni locale filtr zachova existujici mutaci deaktivovaneho jazyka
      */
     public function testExistingTranslationRemainsVisibleForExplicitDisabledLocale(): void
@@ -246,7 +289,7 @@ final class NewsDataGridTest extends TestCase
     /**
      * Vytvori explicitni DataGrid dotaz pro content locale
      */
-    private function query(string $locale): DataGridQuery
+    private function query(string $locale, string $status = 'active'): DataGridQuery
     {
         return new DataGridQuery(
             page: 1,
@@ -254,7 +297,7 @@ final class NewsDataGridTest extends TestCase
             sortKey: 'publishedAt',
             sortDirection: 'desc',
             search: '',
-            filters: ['locale' => $locale],
+            filters: ['locale' => $locale, 'status' => $status],
         );
     }
 
@@ -301,5 +344,29 @@ final class NewsDataGridTest extends TestCase
         self::assertIsString($value);
 
         return $value;
+    }
+
+    /**
+     * Vrati dva textove radky serializovane stacked bunky
+     *
+     * @param array<string,mixed> $row
+     * @return array{value:string,secondary:string}
+     */
+    private function stackedCell(array $row, string $key): array
+    {
+        $cells = $row['cells'] ?? null;
+        self::assertIsArray($cells);
+        $cell = $cells[$key] ?? null;
+        self::assertIsArray($cell);
+        $presentation = $cell[0] ?? null;
+        self::assertIsArray($presentation);
+        self::assertSame('stacked', $presentation['type'] ?? null);
+        self::assertIsString($presentation['value'] ?? null);
+        self::assertIsString($presentation['secondary'] ?? null);
+
+        return [
+            'value' => $presentation['value'],
+            'secondary' => $presentation['secondary'],
+        ];
     }
 }

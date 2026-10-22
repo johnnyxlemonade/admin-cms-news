@@ -6,15 +6,17 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](composer.json)
 
 `johnnyxlemonade/admin-cms-news` is an optional CMS module with the
-`cms.news` code. After installation and explicit enablement, it provides News
-management at `/admin/news`.
+`cms.news` code. When present in the Composer installation, it provides News
+management at `<admin-base>/content/news` (for the standard `/admin` base path,
+`/admin/content/news`).
 
 An article contains localized title, summary, content, and SEO metadata.
-Publication and media belong to the article root aggregate. Galleries
-and attachments use shared Admin Platform file collections; this package does
-not introduce its own upload transport or storage. Canonical public URLs are
-reserved as locale-unique slug paths through the shared `cms_route` contract;
-they do not inherit or require a public collection path.
+Publication state and publication time belong to each localized translation;
+media belongs to the article root aggregate. Galleries and attachments use
+shared Admin Platform file collections; this package does not introduce its
+own upload transport or storage. Canonical public URLs are reserved as
+locale-unique slug paths through the shared `cms_route` contract; they do not
+inherit or require a public collection path.
 
 The package does not own public frontend HTML or article rendering. The host
 application provides public presentation and enforces the module's public
@@ -22,16 +24,16 @@ publication semantics.
 
 ## Installation
 
-The package requires PHP `>=8.3 <8.6`, `johnnyxlemonade/framework`, and
-`johnnyxlemonade/admin-platform`.
+The package requires PHP `>=8.3 <8.6`, `johnnyxlemonade/framework`,
+`johnnyxlemonade/admin-platform`, and `johnnyxlemonade/cms-core`.
 
 ```bash
 composer require johnnyxlemonade/admin-cms-news:dev-main
 ```
 
-Composer package metadata discovers and activates the module. Run the host
-application's controlled migration and permission-sync deployment flow before
-serving requests.
+Composer package metadata discovers and activates the module; there is no
+separate installed or enabled state. Run the host application's controlled
+migration and permission-sync deployment flow before serving requests.
 
 ## Package boundaries
 
