@@ -77,8 +77,8 @@ final readonly class NewsAdminEditorDefinitionFactory
             ->tab($this->contentTab($translation, $contentLocale, $tagOptions))
             ->tab($this->seoTab($translation))
             ->tab($this->settingsTab())
-            ->tab($this->mediaTab('gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery', $galleryUpload))
-            ->tab($this->mediaTab('attachments', 'admin.file_upload.attachments', 'admin.file_upload.attachments', $attachmentUpload));
+            ->tab($this->mediaTab('gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery', 'news.editor.sections.gallery_help', $galleryUpload))
+            ->tab($this->mediaTab('attachments', 'admin.file_upload.attachments', 'admin.file_upload.attachments', 'news.editor.sections.attachments_help', $attachmentUpload));
 
         $sidebarSections = $this->sidebarSections(
             article: $article,
@@ -200,6 +200,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                     ],
                     title: '',
                     titleKey: 'news.editor.sections.localized_content',
+                    descriptionKey: 'news.editor.sections.localized_content_help',
                 ),
                 new SectionBlock(
                     id: 'content-body',
@@ -214,6 +215,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                     ],
                     title: '',
                     titleKey: 'news.editor.sections.content',
+                    descriptionKey: 'news.editor.sections.content_help',
                 ),
             ],
             labelKey: 'news.editor.tabs.content',
@@ -294,6 +296,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                     ],
                     title: '',
                     titleKey: 'news.editor.sections.recommendation',
+                    descriptionKey: 'news.editor.sections.recommendation_help',
                 ),
                 new SectionBlock(
                     id: 'display-settings',
@@ -333,6 +336,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                     ],
                     title: '',
                     titleKey: 'news.editor.sections.display',
+                    descriptionKey: 'news.editor.sections.display_help',
                 ),
             ],
             labelKey: 'news.editor.tabs.settings',
@@ -342,7 +346,7 @@ final readonly class NewsAdminEditorDefinitionFactory
     /**
      * Sestavi zatim neimplementovanou content capability jako informativni tab
      */
-    private function placeholderTab(string $id, string $labelKey, string $titleKey): AdminEditorTab
+    private function placeholderTab(string $id, string $labelKey, string $titleKey, string $descriptionKey): AdminEditorTab
     {
         return new AdminEditorTab(
             id: $id,
@@ -353,8 +357,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                     blocks: [],
                     title: '',
                     titleKey: $titleKey,
-                    description: '',
-                    descriptionKey: 'news.editor.not_implemented',
+                    descriptionKey: $descriptionKey,
                 ),
             ],
             labelKey: $labelKey,
@@ -364,10 +367,15 @@ final readonly class NewsAdminEditorDefinitionFactory
     /**
      * Sestavi article-global media tab nad shared Admin upload collection contractem
      */
-    private function mediaTab(string $id, string $labelKey, string $titleKey, ?AdminFileUploadCollection $upload): AdminEditorTab
-    {
+    private function mediaTab(
+        string $id,
+        string $labelKey,
+        string $titleKey,
+        string $descriptionKey,
+        ?AdminFileUploadCollection $upload,
+    ): AdminEditorTab {
         if ($upload === null) {
-            return $this->placeholderTab($id, $labelKey, $titleKey);
+            return $this->placeholderTab($id, $labelKey, $titleKey, $descriptionKey);
         }
 
         return new AdminEditorTab(
@@ -379,6 +387,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                     blocks: [new CustomViewBlock('admin::components.file-upload-collection', ['uploadCollection' => $upload])],
                     title: '',
                     titleKey: $titleKey,
+                    descriptionKey: $descriptionKey,
                 ),
             ],
             labelKey: $labelKey,
@@ -423,34 +432,51 @@ final readonly class NewsAdminEditorDefinitionFactory
                 ],
                 title: '',
                 titleKey: 'news.editor.publication',
+                descriptionKey: 'news.editor.sections.publication_help',
             );
         }
-        $ownershipFields = [
-            new FieldColumn(Field::readonlyDisplay('created_by_name', labelKey: 'news.fields.created_by'), md: 12),
-            new FieldColumn(Field::readonlyDisplay('created_at', labelKey: 'news.fields.created_at'), md: 12),
-            new FieldColumn(Field::readonlyDisplay('updated_by_name', labelKey: 'news.fields.updated_by'), md: 12),
-            new FieldColumn(Field::readonlyDisplay('updated_at', labelKey: 'news.fields.updated_at'), md: 12),
+        $metadata = [
+            [
+                'labelKey' => 'news.fields.created_by',
+                'value' => trim((string) ($article['created_by_name'] ?? '')),
+                'detail' => trim((string) ($article['created_at'] ?? '')),
+            ],
+            [
+                'labelKey' => 'news.fields.updated_by',
+                'value' => trim((string) ($article['updated_by_name'] ?? '')),
+                'detail' => trim((string) ($article['updated_at'] ?? '')),
+            ],
+            [
+                'labelKey' => 'news.fields.owner',
+                'value' => trim((string) ($article['owner_name'] ?? '')),
+                'detail' => null,
+                'wide' => true,
+                'current' => true,
+            ],
         ];
-        $ownershipFields[] = new FieldColumn(
-            $canAssignOwner
-                ? Field::actionSelect(
-                    name: 'owner_id',
-                    actionKey: 'assign-owner',
-                    labelKey: 'news.fields.owner',
-                    actionLabelKey: 'news.actions.assign_owner',
-                )->options($ownerOptions)
-                : Field::readonlyDisplay('owner_name', labelKey: 'news.fields.owner'),
-            md: 12,
-        );
         if (($article['deleted_at'] ?? null) !== null) {
-            $ownershipFields[] = new FieldColumn(Field::readonlyDisplay('deleted_by_name', labelKey: 'news.fields.deleted_by'), md: 12);
-            $ownershipFields[] = new FieldColumn(Field::readonlyDisplay('deleted_at', labelKey: 'news.fields.deleted_at'), md: 12);
+            $metadata[] = [
+                'labelKey' => 'news.fields.deleted_by',
+                'value' => trim((string) ($article['deleted_by_name'] ?? '')),
+                'detail' => trim((string) ($article['deleted_at'] ?? '')),
+                'wide' => true,
+            ];
+        }
+        $ownershipBlocks = [new CustomViewBlock('admin::components.editor-audit-metadata', ['metadata' => $metadata])];
+        if ($canAssignOwner) {
+            $ownershipBlocks[] = new FieldGroupBlock([new FieldColumn(
+                Field::actionSelect('owner_id', 'assign-owner', labelKey: 'news.actions.assign_owner', actionLabelKey: 'news.actions.assign_owner_submit')
+                    ->options($ownerOptions)
+                    ->attributes(['data-lemonade-searchable' => true]),
+                md: 12,
+            )]);
         }
         $sections[] = new SectionBlock(
             id: 'ownership',
-            blocks: [new FieldGroupBlock($ownershipFields)],
+            blocks: $ownershipBlocks,
             title: '',
             titleKey: 'news.editor.ownership',
+            descriptionKey: 'news.editor.sections.ownership_help',
         );
         if ($featuredImageUpload !== null) {
             $sections[] = new SectionBlock(
@@ -463,6 +489,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                 ],
                 title: '',
                 titleKey: 'news.editor.thumbnail.title',
+                descriptionKey: 'news.editor.sections.thumbnail_help',
             );
         }
 
