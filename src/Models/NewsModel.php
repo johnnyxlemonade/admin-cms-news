@@ -401,9 +401,11 @@ final class NewsModel extends Model
         $tags = $this->translationTagsQuery()
             ->select(['tag.name'])
             ->from('cms_news_article_translation_tag tag')
-            ->join(
+            ->joinOn(
                 'cms_news_article_translation translation',
-                'translation.id = tag.translation_id',
+                'translation.id',
+                '=',
+                'tag.translation_id',
             )
             ->where('translation.article_id', $articleId)
             ->where('translation.locale', $locale)
@@ -428,9 +430,11 @@ final class NewsModel extends Model
         $tags = $this->translationTagsQuery()
             ->select(['tag.name'])
             ->from('cms_news_article_translation_tag tag')
-            ->join(
+            ->joinOn(
                 'cms_news_article_translation translation',
-                'translation.id = tag.translation_id',
+                'translation.id',
+                '=',
+                'tag.translation_id',
             )
             ->where('translation.locale', $locale)
             ->groupBy('tag.name')
@@ -594,10 +598,11 @@ final class NewsModel extends Model
                 'translation.published_at',
             ])
             ->selectRaw('route.path AS canonical_path')
-            ->join(
-                'cms_route route',
-                "route.module_code = 'cms.news' AND route.entity_id = translation.article_id AND route.locale = translation.locale",
-                'LEFT',
+            ->joinRaw(
+                table: 'cms_route route',
+                condition: 'route.module_code = ? AND route.entity_id = translation.article_id AND route.locale = translation.locale',
+                bindings: ['cms.news'],
+                type: 'LEFT',
             )
             ->where('translation.article_id', $articleId)
             ->orderBy('translation.locale', 'ASC')
@@ -607,9 +612,11 @@ final class NewsModel extends Model
         foreach ($this->translationTagsQuery()
             ->selectRaw('translation.id AS translation_id, tag.name')
             ->from('cms_news_article_translation_tag tag')
-            ->join(
+            ->joinOn(
                 'cms_news_article_translation translation',
-                'translation.id = tag.translation_id',
+                'translation.id',
+                '=',
+                'tag.translation_id',
             )
             ->where('translation.article_id', $articleId)
             ->orderBy('tag.sort_order', 'ASC')
@@ -643,10 +650,11 @@ final class NewsModel extends Model
                 'language.is_default',
             ])
             ->selectRaw('CASE WHEN translation.id IS NULL THEN 0 ELSE 1 END AS has_translation')
-            ->join(
-                'cms_news_article_translation translation',
-                'translation.locale = language.code AND translation.article_id = ' . $articleId,
-                'LEFT',
+            ->joinRaw(
+                table: 'cms_news_article_translation translation',
+                condition: 'translation.locale = language.code AND translation.article_id = ?',
+                bindings: [$articleId],
+                type: 'LEFT',
             )
             ->whereRaw('language.enabled = 1 OR translation.id IS NOT NULL')
             ->orderBy('language.sort_order', 'ASC')
@@ -667,9 +675,11 @@ final class NewsModel extends Model
         $locales = QueryBuilder::make($this->db)
             ->table('system_language language')
             ->select(['language.code', 'language.name'])
-            ->join(
+            ->joinOn(
                 'cms_news_article_translation translation',
-                'translation.locale = language.code',
+                'translation.locale',
+                '=',
+                'language.code',
                 'LEFT',
             )
             ->whereRaw('language.enabled = 1 OR translation.id IS NOT NULL')
@@ -707,16 +717,17 @@ final class NewsModel extends Model
         $builder = $this->withDeleted()
             ->query()
             ->from('cms_news_article a')
-            ->join('cms_news_article_translation t', 't.article_id = a.id')
-            ->join(
-                'cms_route route',
-                "route.module_code = 'cms.news' AND route.entity_id = a.id AND route.locale = t.locale",
-                'LEFT',
+            ->joinOn('cms_news_article_translation t', 't.article_id', '=', 'a.id')
+            ->joinRaw(
+                table: 'cms_route route',
+                condition: 'route.module_code = ? AND route.entity_id = a.id AND route.locale = t.locale',
+                bindings: ['cms.news'],
+                type: 'LEFT',
             )
-            ->join('system_user creator', 'creator.id = a.created_by', 'LEFT')
-            ->join('system_user updater', 'updater.id = a.updated_by', 'LEFT')
-            ->join('system_user deleter', 'deleter.id = a.deleted_by', 'LEFT')
-            ->join('system_user owner', 'owner.id = a.owner_id', 'LEFT')
+            ->joinOn('system_user creator', 'creator.id', '=', 'a.created_by', 'LEFT')
+            ->joinOn('system_user updater', 'updater.id', '=', 'a.updated_by', 'LEFT')
+            ->joinOn('system_user deleter', 'deleter.id', '=', 'a.deleted_by', 'LEFT')
+            ->joinOn('system_user owner', 'owner.id', '=', 'a.owner_id', 'LEFT')
             ->where('t.locale', $locale);
         if ($ownerId !== null) {
             $builder = $builder->where('a.owner_id', $ownerId);

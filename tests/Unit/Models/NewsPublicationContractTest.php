@@ -133,14 +133,16 @@ final class NewsPublicationContractTest extends TestCase
 
         self::assertCount(2, $capturedSql);
         foreach ($capturedSql as $sql) {
-            self::assertStringContainsString('LEFT JOIN cms_route route', $sql);
-            self::assertStringContainsString('JOIN cms_news_article_translation t', $sql);
-            self::assertStringContainsString("route.module_code = 'cms.news'", $sql);
+            self::assertStringContainsString('LEFT JOIN cms_route AS route', $sql);
+            self::assertStringContainsString('JOIN cms_news_article_translation AS t', $sql);
+            self::assertStringContainsString('route.module_code = ?', $sql);
             self::assertStringContainsString('t.locale = ?', $sql);
             self::assertStringContainsString('route.path LIKE ?', $sql);
         }
         self::assertContains('en', $capturedBindings[0]);
         self::assertContains('en', $capturedBindings[1]);
+        self::assertSame('cms.news', $capturedBindings[0][0]);
+        self::assertSame('cms.news', $capturedBindings[1][0]);
         self::assertStringContainsString('route.path AS canonical_path', $capturedSql[1]);
     }
 
@@ -168,8 +170,34 @@ final class NewsPublicationContractTest extends TestCase
         $locales = (new NewsModel($driver))->dataGridLocales();
 
         self::assertSame(['cs', 'en'], array_column($locales, 'code'));
-        self::assertStringContainsString('LEFT JOIN cms_news_article_translation translation', $capturedSql);
+        self::assertStringContainsString('LEFT JOIN cms_news_article_translation AS translation ON translation.locale = language.code', $capturedSql);
         self::assertStringContainsString('language.enabled = 1 OR translation.id IS NOT NULL', $capturedSql);
+    }
+
+    /**
+     * Editor locale JOIN predava identitu aktuality jako binding
+     */
+    public function testEditorLocalesBindArticleIdentityInJoin(): void
+    {
+        $capturedSql = '';
+        $capturedBindings = [];
+        $result = $this->createMock(DatabaseResultInterface::class);
+        $result->method('result_array')->willReturn([]);
+        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
+        $driver->method('query')->willReturnCallback(
+            static function (string $sql, array $bindings = []) use (&$capturedSql, &$capturedBindings, $result): DatabaseResultInterface {
+                $capturedSql = $sql;
+                $capturedBindings = $bindings;
+
+                return $result;
+            },
+        );
+
+        (new NewsModel($driver))->editorLocales(37);
+
+        self::assertStringContainsString('translation.article_id = ?', $capturedSql);
+        self::assertSame([37], $capturedBindings);
     }
 
     /**
