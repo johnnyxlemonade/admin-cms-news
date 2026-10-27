@@ -69,7 +69,7 @@ final readonly class ModuleManifest implements
     {
         return new AdminModuleMetadata(
             nameKey: 'news.module.name',
-            icon: AdminIcon::JournalText,
+            icon: AdminIcon::Newspaper,
             navigationGroup: AdminNavigationGroup::Content,
             navigationOrder: 10,
             routeSegment: 'news',
