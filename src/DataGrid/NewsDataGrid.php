@@ -6,6 +6,7 @@ namespace Lemonade\Cms\News\DataGrid;
 
 use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Authorization\AuthorizationService;
+use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
 use Lemonade\Admin\DataGrid\Action\DataGridRowActionDefinition;
 use Lemonade\Admin\DataGrid\Cell\ScalarCell;
 use Lemonade\Admin\DataGrid\Cell\StackedCell;
@@ -27,7 +28,7 @@ use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Admin\Select\SelectOptionDefinition;
 use Lemonade\Admin\Select\StaticSelectOptionSource;
 use Lemonade\Cms\CmsPublicationState;
-use Lemonade\Cms\News\Models\NewsModel;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
@@ -40,7 +41,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
      * Nastavuje News persistence projekci pro DataGrid
      */
     public function __construct(
-        private NewsModel $news,
+        private CmsContentReadModel $news,
         private AuthorizationService $authorization,
         private TranslatorInterface $translator,
         private ModuleActionPresentationFactory $actionPresentation,
@@ -49,6 +50,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
         private AdminFileModel $files,
         private AdminThumbnailComponent $thumbnails,
         private LanguageRegistry $languages,
+        private CmsContentDataGrid $contentGrid,
     ) {}
 
     /**
@@ -116,7 +118,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
         if (!$canViewAll && $ownerId === null) {
             return new DataGridResult([], $query->page(), $query->pageSize(), 0);
         }
-        $page = $this->news->listForDataGrid(
+        $page = $this->contentGrid->listForDataGrid(
             $query,
             $this->languages->defaultLocale(),
             $ownerId,

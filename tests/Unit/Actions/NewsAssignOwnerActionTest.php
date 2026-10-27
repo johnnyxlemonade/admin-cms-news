@@ -7,10 +7,12 @@ namespace Lemonade\Cms\News\Tests\Unit\Actions;
 use Lemonade\Admin\Auth\AuthenticatedUser;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
+use Lemonade\Admin\Cms\Content\Action\CmsContentAction;
+use Lemonade\Admin\Cms\Content\Action\CmsContentActionType;
 use Lemonade\Admin\Identity\LocalActorGuard;
+use Lemonade\Cms\Content\CmsContentDefinition;
 use Lemonade\Cms\Content\CmsContentLifecycle;
-use Lemonade\Cms\News\Actions\NewsAssignOwnerAction;
-use Lemonade\Cms\News\Models\NewsModel;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
 use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
@@ -47,7 +49,7 @@ final class NewsAssignOwnerActionTest extends TestCase
      *
      * @param list<string> $permissions
      */
-    private function action(?int $ownerId, array $permissions): NewsAssignOwnerAction
+    private function action(?int $ownerId, array $permissions): CmsContentAction
     {
         $result = $this->createMock(DatabaseResultInterface::class);
         $result->method('row_array')->willReturn(['owner_id' => $ownerId]);
@@ -71,11 +73,14 @@ final class NewsAssignOwnerActionTest extends TestCase
         $principal = $this->createMock(CurrentPrincipalProviderInterface::class);
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(42, 'owner@example.test'));
 
-        return new NewsAssignOwnerAction(
+        return new CmsContentAction(
             $this->instanceWithoutConstructor(CmsContentLifecycle::class),
-            new NewsModel($driver),
+            new CmsContentReadModel(new Database($connection, $driver), new CmsContentDefinition('cms.news', 'item', 'item', 'translation', 'item_id', 'tag', 'unique_key', 'news', \stdClass::class)),
             $this->instanceWithoutConstructor(LocalActorGuard::class),
             new AuthorizationService($principal, new Database($connection, $driver)),
+            CmsContentActionType::AssignOwner,
+            'cms.news',
+            'news',
         );
     }
 

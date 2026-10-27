@@ -11,9 +11,10 @@ use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Cms\Content\CmsContentLifecycle;
+use Lemonade\Cms\Content\CmsContentReadModel;
+use Lemonade\Cms\News\CmsNewsServiceProvider;
 use Lemonade\Cms\News\Editor\NewsEditor;
 use Lemonade\Cms\News\Editor\NewsEditorValidationSchema;
-use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
 use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
@@ -84,7 +85,7 @@ final class NewsEditorAuthorizationTest extends TestCase
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(42, 'owner@example.test'));
 
         return new NewsEditor(
-            new NewsModel($driver),
+            new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()),
             $this->instanceWithoutConstructor(CmsContentLifecycle::class),
             $this->instanceWithoutConstructor(LanguageRegistry::class),
             $this->instanceWithoutConstructor(LocalActorGuard::class),

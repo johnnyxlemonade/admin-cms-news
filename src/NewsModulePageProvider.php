@@ -20,9 +20,9 @@ use Lemonade\Admin\Page\Contract\ModuleEditorPageProviderInterface;
 use Lemonade\Admin\Page\Contract\ModuleIndexPageProviderInterface;
 use Lemonade\Admin\Page\ModulePage;
 use Lemonade\Admin\Presentation\AdminFileUploadComponent;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsAdminEditorDefinitionFactory;
-use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
@@ -42,7 +42,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
         private AdminModuleRouteResolver $routes,
         private NewsAdminEditorDefinitionFactory $adminEditorDefinitions,
         private AdminFileUploadComponent $files,
-        private NewsModel $news,
+        private CmsContentReadModel $news,
         private LocalUserDirectory $users,
     ) {}
 

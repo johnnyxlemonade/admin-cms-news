@@ -9,6 +9,7 @@ use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Auth\AuthenticatedUser;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
+use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
 use Lemonade\Admin\DataGrid\DataGridRowDefinition;
 use Lemonade\Admin\DataGrid\Query\DataGridQuery;
 use Lemonade\Admin\File\FileReadModel;
@@ -19,9 +20,9 @@ use Lemonade\Admin\Navigation\AdminNavigationGroupRegistry;
 use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Cms\CmsPublicationState;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Cms\News\CmsNewsServiceProvider;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
-use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\ModuleManifest;
 use Lemonade\Framework\Cache\CacheManager;
 use Lemonade\Framework\Cache\Store\ArrayCacheItemPool;
@@ -165,7 +166,7 @@ final class NewsDataGridTest extends TestCase
             },
         );
 
-        (new NewsModel($driver))->listForDataGrid($this->query('cs'), 'cs', 42);
+        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->listForDataGrid($this->query('cs'), 'cs', 42);
 
         self::assertCount(2, $queries);
         self::assertStringContainsString('a.owner_id = ?', $queries[0]);
@@ -275,7 +276,7 @@ final class NewsDataGridTest extends TestCase
         );
 
         return new NewsDataGrid(
-            new NewsModel($driver),
+            new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()),
             $authorization,
             $translator,
             $actionPresentation,
@@ -284,6 +285,7 @@ final class NewsDataGridTest extends TestCase
             new AdminFileModel($driver, new FileReadModel($driver)),
             new AdminThumbnailComponent(new ImageUrlGenerator($urls, $variants)),
             $languages,
+            new CmsContentDataGrid($database, CmsNewsServiceProvider::contentDefinition()),
         );
     }
 

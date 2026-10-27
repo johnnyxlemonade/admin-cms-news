@@ -19,7 +19,7 @@ use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Cms\Content\CmsContentInput;
 use Lemonade\Cms\Content\CmsContentLifecycle;
-use Lemonade\Cms\News\Models\NewsModel;
+use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Cms\News\NewsData;
 use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Validation\ValidationSchema;
@@ -38,7 +38,7 @@ final readonly class NewsEditor implements
      * @param CmsContentLifecycle<NewsData> $service
      */
     public function __construct(
-        private NewsModel $news,
+        private CmsContentReadModel $news,
         private CmsContentLifecycle $service,
         private LanguageRegistry $languages,
         private LocalActorGuard $actors,

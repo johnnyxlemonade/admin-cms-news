@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Tests\Unit\Models;
 
+use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
 use Lemonade\Admin\DataGrid\Query\DataGridQuery;
-use Lemonade\Cms\News\Models\NewsModel;
+use Lemonade\Cms\Content\CmsContentReadModel;
+use Lemonade\Cms\News\CmsNewsServiceProvider;
+use Lemonade\Framework\Database\Connection\ConnectionInterface;
+use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
 use Lemonade\Framework\Database\DatabaseResultInterface;
 use PHPUnit\Framework\TestCase;
@@ -39,7 +43,7 @@ final class NewsPublicationContractTest extends TestCase
             },
         );
 
-        (new NewsModel($driver))->listForDataGrid(new DataGridQuery(
+        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->listForDataGrid(new DataGridQuery(
             page: 1,
             pageSize: 25,
             sortKey: 'title',
@@ -84,7 +88,7 @@ final class NewsPublicationContractTest extends TestCase
             },
         );
 
-        $locales = (new NewsModel($driver))->dataGridLocales();
+        $locales = (new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->dataGridLocales();
 
         self::assertSame(['cs', 'en'], array_column($locales, 'code'));
         self::assertStringContainsString('LEFT JOIN cms_news_article_translation AS translation ON translation.locale = language.code', $capturedSql);
@@ -111,7 +115,7 @@ final class NewsPublicationContractTest extends TestCase
             },
         );
 
-        (new NewsModel($driver))->editorLocales(37);
+        (new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->editorLocales(37);
 
         self::assertStringContainsString('translation.article_id = ?', $capturedSql);
         self::assertSame([37], $capturedBindings);

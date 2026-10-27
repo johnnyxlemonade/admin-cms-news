@@ -14,14 +14,9 @@ use Lemonade\Cms\Content\CmsContentDefinition;
 use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\Content\CmsDomainMapping;
 use Lemonade\Cms\Content\Models\CmsContentModel;
-use Lemonade\Cms\News\Actions\NewsAssignOwnerAction;
-use Lemonade\Cms\News\Actions\NewsChangeUrlAction;
-use Lemonade\Cms\News\Actions\NewsDeleteAction;
-use Lemonade\Cms\News\Actions\NewsRestoreAction;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsEditor;
 use Lemonade\Cms\News\Editor\NewsEditorValidationSchema;
-use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
 use Lemonade\Framework\Container\ContainerBuilderInterface;
 use Lemonade\Framework\Container\ContainerInterface;
@@ -41,30 +36,21 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
      */
     public function register(ContainerBuilderInterface $container): void
     {
-        $container->scoped('cms.news.lifecycle', static function (ContainerInterface $container): CmsContentLifecycle {
-            $definition = new CmsContentDefinition(
-                moduleCode: ModuleManifest::CODE,
-                entityType: 'cms_news_article',
-                rootTable: 'cms_news_article',
-                translationTable: 'cms_news_article_translation',
-                translationForeignKey: 'article_id',
-                tagTable: 'cms_news_article_translation_tag',
-                translationUniqueConstraint: 'uq_cms_news_article_translation_locale',
-                validationPrefix: 'news',
-                dataClass: NewsData::class,
-            );
-
-            return new CmsContentLifecycle(
-                $definition,
-                new CmsContentModel($container->get(Database::class), $definition),
-                new CmsDomainMapping(NewsData::class),
-                $container->get(CmsRouteReservationService::class),
-                $container->get(Slugger::class),
-                $container->get(CmsAdminRuntime::class),
-            );
-        });
+        $container->scoped('cms.news.definition', static fn(): CmsContentDefinition => self::contentDefinition());
+        $container->scoped('cms.news.content_model', static fn(ContainerInterface $container): CmsContentModel => new CmsContentModel(
+            $container->get(Database::class),
+            $container->get('cms.news.definition'),
+        ));
+        $container->scoped('cms.news.lifecycle', static fn(ContainerInterface $container): CmsContentLifecycle => new CmsContentLifecycle(
+            $container->get('cms.news.definition'),
+            $container->get('cms.news.content_model'),
+            new CmsDomainMapping(NewsData::class),
+            $container->get(CmsRouteReservationService::class),
+            $container->get(Slugger::class),
+            $container->get(CmsAdminRuntime::class),
+        ));
         $container->scoped(NewsEditor::class, static fn(ContainerInterface $container): NewsEditor => new NewsEditor(
-            $container->get(NewsModel::class),
+            $container->get('cms.news.read'),
             $container->get('cms.news.lifecycle'),
             $container->get(LanguageRegistry::class),
             $container->get(LocalActorGuard::class),
@@ -73,21 +59,25 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
             $container->get(UrlGenerator::class),
             $container->get(AuthorizationService::class),
         ));
-        foreach ([NewsChangeUrlAction::class, NewsDeleteAction::class, NewsRestoreAction::class] as $action) {
-            $container->scoped($action, static fn(ContainerInterface $container): object => new $action(
-                $container->get('cms.news.lifecycle'),
-                $container->get(LocalActorGuard::class),
-                $container->get(NewsModel::class),
-                $container->get(AuthorizationService::class),
-            ));
-        }
-        $container->scoped(NewsAssignOwnerAction::class, static fn(ContainerInterface $container): NewsAssignOwnerAction => new NewsAssignOwnerAction(
-            $container->get('cms.news.lifecycle'),
-            $container->get(NewsModel::class),
-            $container->get(LocalActorGuard::class),
-            $container->get(AuthorizationService::class),
-        ));
         self::adminProvider()->register($container);
+    }
+
+    /**
+     * Vrati registrovane tabulky a atributove mapovani obsahu
+     */
+    public static function contentDefinition(): CmsContentDefinition
+    {
+        return new CmsContentDefinition(
+            moduleCode: ModuleManifest::CODE,
+            entityType: 'cms_news_article',
+            rootTable: 'cms_news_article',
+            translationTable: 'cms_news_article_translation',
+            translationForeignKey: 'article_id',
+            tagTable: 'cms_news_article_translation_tag',
+            translationUniqueConstraint: 'uq_cms_news_article_translation_locale',
+            validationPrefix: 'news',
+            dataClass: NewsData::class,
+        );
     }
 
     /**
@@ -110,10 +100,8 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
             dataGridService: NewsDataGrid::class,
             pageService: NewsModulePageProvider::class,
             editorService: NewsEditor::class,
-            changeUrlService: NewsChangeUrlAction::class,
-            deleteService: NewsDeleteAction::class,
-            restoreService: NewsRestoreAction::class,
-            assignOwnerService: NewsAssignOwnerAction::class,
+            lifecycleService: 'cms.news.lifecycle',
+            contentDefinitionService: 'cms.news.definition',
         );
     }
 }
