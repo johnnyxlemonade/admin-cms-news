@@ -13,8 +13,9 @@ use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Http\AdminErrorCode;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Identity\LocalActorRequiredException;
+use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\News\Models\NewsModel;
-use Lemonade\Cms\News\Services\NewsService;
+use Lemonade\Cms\News\NewsData;
 use Lemonade\Framework\Http\HttpStatus as HttpStatusCode;
 
 /**
@@ -24,9 +25,11 @@ final readonly class NewsRestoreAction implements ModuleActionHandlerInterface, 
 {
     /**
      * Nastavuje News lifecycle a localni identitu auditovane mutace
+     *
+     * @param CmsContentLifecycle<NewsData> $news
      */
     public function __construct(
-        private NewsService $news,
+        private CmsContentLifecycle $news,
         private LocalActorGuard $actors,
         private NewsModel $model,
         private AuthorizationService $authorization,
@@ -61,7 +64,7 @@ final readonly class NewsRestoreAction implements ModuleActionHandlerInterface, 
 
         try {
             $this->news->restore(
-                $this->actors->requireAuditActor(),
+                $this->actors->requireLocalUser()->id(),
                 $id,
             );
         } catch (LocalActorRequiredException $exception) {

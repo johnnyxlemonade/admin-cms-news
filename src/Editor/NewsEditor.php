@@ -17,8 +17,10 @@ use Lemonade\Admin\Editor\Exception\EditorValidationException;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Localization\LanguageRegistry;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
+use Lemonade\Cms\Content\CmsContentInput;
+use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\News\Models\NewsModel;
-use Lemonade\Cms\News\Services\NewsService;
+use Lemonade\Cms\News\NewsData;
 use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Validation\ValidationSchema;
 
@@ -32,10 +34,12 @@ final readonly class NewsEditor implements
 {
     /**
      * Nastavuje News persistence, mutation service, preklady a auditni identitu editoru
+     *
+     * @param CmsContentLifecycle<NewsData> $service
      */
     public function __construct(
         private NewsModel $news,
-        private NewsService $service,
+        private CmsContentLifecycle $service,
         private LanguageRegistry $languages,
         private LocalActorGuard $actors,
         private NewsEditorValidationSchema $validation,
@@ -174,8 +178,11 @@ final readonly class NewsEditor implements
     public function update(int $id, array $data): EditorSaveResult
     {
         try {
-            $actor = $this->actors->requireAuditActor();
-            $this->service->save($actor, $id, $data);
+            $actorId = $this->actors->requireLocalUser()->id();
+            if (($data['publication_state'] ?? null) === null) {
+                unset($data['publication_state'], $data['published_at']);
+            }
+            $this->service->save($actorId, $id, CmsContentInput::fromEditor($data), NewsData::fromEditor($data));
         } catch (DomainException $exception) {
             throw new EditorValidationException($exception->getMessage(), previous: $exception);
         }
@@ -192,9 +199,9 @@ final readonly class NewsEditor implements
     public function create(array $data): EditorSaveResult
     {
         try {
-            $actor = $this->actors->requireAuditActor();
+            $actorId = $this->actors->requireLocalUser()->id();
             $locale = $this->languages->defaultLocale();
-            $articleId = $this->service->createDraft($actor, $locale);
+            $articleId = $this->service->createDraft($actorId, $locale);
         } catch (DomainException $exception) {
             throw new EditorValidationException($exception->getMessage(), previous: $exception);
         }

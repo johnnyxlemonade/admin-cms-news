@@ -8,9 +8,9 @@ use Lemonade\Admin\Auth\AuthenticatedUser;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Authorization\CurrentPrincipalProviderInterface;
 use Lemonade\Admin\Identity\LocalActorGuard;
+use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\News\Actions\NewsAssignOwnerAction;
 use Lemonade\Cms\News\Models\NewsModel;
-use Lemonade\Cms\News\Services\NewsService;
 use Lemonade\Framework\Database\Connection\ConnectionInterface;
 use Lemonade\Framework\Database\Database;
 use Lemonade\Framework\Database\DatabaseDriverInterface;
@@ -72,7 +72,7 @@ final class NewsAssignOwnerActionTest extends TestCase
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(42, 'owner@example.test'));
 
         return new NewsAssignOwnerAction(
-            $this->instanceWithoutConstructor(NewsService::class),
+            $this->instanceWithoutConstructor(CmsContentLifecycle::class),
             new NewsModel($driver),
             $this->instanceWithoutConstructor(LocalActorGuard::class),
             new AuthorizationService($principal, new Database($connection, $driver)),

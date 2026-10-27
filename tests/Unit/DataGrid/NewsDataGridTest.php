@@ -19,7 +19,7 @@ use Lemonade\Admin\Navigation\AdminNavigationGroupRegistry;
 use Lemonade\Admin\Presentation\AdminThumbnailComponent;
 use Lemonade\Admin\Presentation\Models\AdminFileModel;
 use Lemonade\Cms\CmsPublicationState;
-use Lemonade\Cms\News\Actions\NewsActionRegistrar;
+use Lemonade\Cms\News\CmsNewsServiceProvider;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Models\NewsModel;
 use Lemonade\Cms\News\ModuleManifest;
@@ -256,7 +256,7 @@ final class NewsDataGridTest extends TestCase
         );
         $urls = new UrlGenerator($router);
         $actions = new ModuleActionRegistry();
-        (new NewsActionRegistrar($actions))->register();
+        CmsNewsServiceProvider::adminProvider()->registerActions($actions);
         $actionPresentation = new ModuleActionPresentationFactory(
             $actions,
             $routes,

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Lemonade\Cms\News\Tests\Unit\Actions;
 
 use Lemonade\Admin\Action\ModuleActionRegistry;
-use Lemonade\Cms\News\Actions\NewsActionRegistrar;
+use Lemonade\Cms\News\CmsNewsServiceProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -19,7 +19,7 @@ final class NewsActionRegistrarTest extends TestCase
     public function testRegistersIndependentUrlChangeAction(): void
     {
         $actions = new ModuleActionRegistry();
-        (new NewsActionRegistrar($actions))->register();
+        CmsNewsServiceProvider::adminProvider()->registerActions($actions);
 
         self::assertTrue($actions->has('cms.news', 'change-url'));
         self::assertSame(

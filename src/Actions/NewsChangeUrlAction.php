@@ -13,8 +13,9 @@ use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Http\AdminErrorCode;
 use Lemonade\Admin\Identity\LocalActorGuard;
 use Lemonade\Admin\Identity\LocalActorRequiredException;
+use Lemonade\Cms\Content\CmsContentLifecycle;
 use Lemonade\Cms\News\Models\NewsModel;
-use Lemonade\Cms\News\Services\NewsService;
+use Lemonade\Cms\News\NewsData;
 use Lemonade\Framework\Http\HttpStatus;
 
 /**
@@ -24,9 +25,11 @@ final readonly class NewsChangeUrlAction implements ModuleActionHandlerInterface
 {
     /**
      * Nastavuje News routy a lokalni auditni identitu
+     *
+     * @param CmsContentLifecycle<NewsData> $news
      */
     public function __construct(
-        private NewsService $news,
+        private CmsContentLifecycle $news,
         private LocalActorGuard $actors,
         private NewsModel $model,
         private AuthorizationService $authorization,
@@ -66,7 +69,7 @@ final readonly class NewsChangeUrlAction implements ModuleActionHandlerInterface
 
         try {
             $urlSegment = $this->news->changeUrlSegment(
-                $this->actors->requireAuditActor(),
+                $this->actors->requireLocalUser()->id(),
                 $id,
                 $locale,
                 $segment,
