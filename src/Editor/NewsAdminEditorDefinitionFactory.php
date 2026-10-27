@@ -6,22 +6,24 @@ namespace Lemonade\Cms\News\Editor;
 
 use Lemonade\Admin\Action\Presentation\AdminActionFormDefinition;
 use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
-use Lemonade\Admin\Editor\AdminEditor\Action\AdminEditorActionDefinition;
-use Lemonade\Admin\Editor\AdminEditor\Action\AdminEditorSaveBarDefinition;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorBuilder;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Field\Field;
 use Lemonade\Admin\Editor\AdminEditor\Header\AdminEditorHeaderContextDefinition;
-use Lemonade\Admin\Editor\AdminEditor\Header\AdminEditorHeaderDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Layout\AdminEditorSidebarDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Layout\AdminEditorTab;
-use Lemonade\Admin\Editor\AdminEditor\Layout\CustomViewBlock;
+use Lemonade\Admin\Editor\AdminEditor\Layout\CmsEditorHeader;
+use Lemonade\Admin\Editor\AdminEditor\Layout\CmsEditorSaveBar;
+use Lemonade\Admin\Editor\AdminEditor\Layout\CmsMediaSection;
+use Lemonade\Admin\Editor\AdminEditor\Layout\CmsOwnershipSection;
+use Lemonade\Admin\Editor\AdminEditor\Layout\CmsPublicationSection;
+use Lemonade\Admin\Editor\AdminEditor\Layout\CmsTagsField;
 use Lemonade\Admin\Editor\AdminEditor\Layout\FieldColumn;
 use Lemonade\Admin\Editor\AdminEditor\Layout\FieldGroupBlock;
 use Lemonade\Admin\Editor\AdminEditor\Layout\SectionBlock;
+use Lemonade\Admin\Editor\AdminEditor\Layout\SeoSection;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Presentation\AdminFileUploadCollection;
-use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
@@ -58,40 +60,29 @@ final readonly class NewsAdminEditorDefinitionFactory
     ): AdminEditorDefinition {
         $articleId = $article['id'];
         $translation = $article['translations'][0] ?? [];
+        $indexUrl = $this->urls->route($this->routes->managementRouteName('news', 'index'), ['module' => 'news']);
         $builder = AdminEditorBuilder::create('cms.news')
             ->form($this->editorForm((int) $articleId, $contentLocale))
-            ->header($this->header($context))
-            ->saveBar(new AdminEditorSaveBarDefinition(
-                primaryAction: new AdminEditorActionDefinition(
-                    label: '',
-                    labelKey: 'admin.common.save_changes',
-                    submit: true,
-                    primary: true,
-                ),
-                secondaryAction: new AdminEditorActionDefinition(
-                    label: '',
-                    labelKey: 'admin.common.discard',
-                ),
-                titleKey: 'admin.editor.unsaved_changes',
-                descriptionKey: 'admin.editor.unsaved_changes_help',
-            ));
+            ->header(CmsEditorHeader::create('news', $indexUrl, $context))
+            ->saveBar(CmsEditorSaveBar::create());
         $builder
             ->tab($this->contentTab($translation, $contentLocale, $tagOptions))
-            ->tab($this->seoTab($translation))
+            ->tab(SeoSection::tab(pathPrefix: '/', autoGenerateUrl: trim((string) ($translation['canonical_path'] ?? '')) === ''))
             ->tab(CmsDisplaySettings::tab())
-            ->tab($this->mediaTab('gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery', 'news.editor.sections.gallery_help', $galleryUpload))
-            ->tab($this->mediaTab('attachments', 'admin.file_upload.attachments', 'admin.file_upload.attachments', 'news.editor.sections.attachments_help', $attachmentUpload));
+            ->tab(CmsMediaSection::gallery('news', $galleryUpload))
+            ->tab(CmsMediaSection::attachments('news', $attachmentUpload));
 
-        $sidebarSections = $this->sidebarSections(
-            article: $article,
-            canPublish: $canPublish,
-            canAssignOwner: $canAssignOwner,
-            ownerOptions: $ownerOptions,
-            featuredImageUpload: $featuredImageUpload,
-        );
-        if ($sidebarSections !== []) {
-            $builder->sidebar(new AdminEditorSidebarDefinition($sidebarSections));
+        $sidebarSections = [];
+        $publication = CmsPublicationSection::create('news', $canPublish);
+        if ($publication !== null) {
+            $sidebarSections[] = $publication;
         }
+        $sidebarSections[] = CmsOwnershipSection::create('news', $article, $canAssignOwner, $ownerOptions);
+        $thumbnail = CmsMediaSection::thumbnail('news', $featuredImageUpload);
+        if ($thumbnail !== null) {
+            $sidebarSections[] = $thumbnail;
+        }
+        $builder->sidebar(new AdminEditorSidebarDefinition($sidebarSections));
 
         return $builder->build();
     }
@@ -109,49 +100,6 @@ final readonly class NewsAdminEditorDefinitionFactory
             actionUrl: $this->urls->route(name: $this->routes->managementRouteName('news', 'ajax.entity'), params: $routeParams),
             actionKey: 'save',
             novalidate: true,
-        );
-    }
-
-    /**
-     * Sestavi shared hlavicku s breadcrumbem, akcemi a content locale contextem
-     */
-    private function header(?AdminEditorHeaderContextDefinition $context): AdminEditorHeaderDefinition
-    {
-        $indexUrl = $this->urls->route(
-            name: $this->routes->managementRouteName('news', 'index'),
-            params: ['module' => 'news'],
-        );
-        $titleKey = 'news.editor.title';
-
-        return new AdminEditorHeaderDefinition(
-            title: '',
-            titleKey: $titleKey,
-            breadcrumbs: [
-                [
-                    'label' => '',
-                    'labelKey' => 'news.module.name',
-                    'href' => $indexUrl,
-                ],
-                [
-                    'label' => '',
-                    'labelKey' => $titleKey,
-                    'current' => true,
-                ],
-            ],
-            actions: [
-                new AdminEditorActionDefinition(
-                    label: '',
-                    labelKey: 'admin.common.back',
-                    href: $indexUrl,
-                ),
-                new AdminEditorActionDefinition(
-                    label: '',
-                    labelKey: 'admin.common.save',
-                    submit: true,
-                    primary: true,
-                ),
-            ],
-            context: $context,
         );
     }
 
@@ -183,17 +131,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                                     ->attributes(['maxlength' => '255']),
                                 md: 12,
                             ),
-                            new FieldColumn(
-                                Field::select('tags', labelKey: 'news.fields.tags')
-                                    ->help('', 'news.fields.tags_help')
-                                    ->multiple()
-                                    ->options($this->tagOptions($tagOptions, $translation['tags'] ?? []))
-                                    ->attributes([
-                                        'data-lemonade-searchable' => true,
-                                        'data-lemonade-allow-create' => true,
-                                    ]),
-                                md: 12,
-                            ),
+                            CmsTagsField::column('news', $tagOptions, $translation['tags'] ?? []),
                             new FieldColumn(
                                 Field::textarea('summary', labelKey: 'news.fields.summary'),
                                 md: 12,
@@ -223,227 +161,5 @@ final readonly class NewsAdminEditorDefinitionFactory
             labelKey: 'news.editor.tabs.content',
             default: true,
         );
-    }
-
-    /**
-     * Sestavi lokalizovana SEO metadata editoru
-     *
-     * @param array<string,mixed> $translation
-     */
-    private function seoTab(array $translation): AdminEditorTab
-    {
-        return new AdminEditorTab(
-            id: 'seo',
-            label: '',
-            blocks: [
-                new SectionBlock(
-                    id: 'seo',
-                    blocks: [
-                        new FieldGroupBlock([
-                            new FieldColumn(
-                                Field::text('page_title', labelKey: 'news.fields.page_title')
-                                    ->attributes(['maxlength' => '180'])
-                                    ->help('', 'news.fields.page_title_help'),
-                                md: 12,
-                            ),
-                            new FieldColumn(
-                                Field::textarea('meta_description', labelKey: 'news.fields.meta_description')
-                                    ->attributes(['maxlength' => '255'])
-                                    ->help('', 'news.fields.meta_description_help'),
-                                md: 12,
-                            ),
-                            new FieldColumn(
-                                Field::urlSegment('url_segment')
-                                    ->attributes(['maxlength' => '180'])
-                                    ->prefix('/')
-                                    ->source(
-                                        field: 'title',
-                                        autoGenerate: trim((string) ($translation['canonical_path'] ?? '')) === '',
-                                    )
-                                    ->action('change-url'),
-                                md: 12,
-                            ),
-                        ]),
-                    ],
-                    title: '',
-                    titleKey: 'news.editor.sections.seo',
-                    description: '',
-                    descriptionKey: 'news.editor.sections.seo_help',
-                ),
-            ],
-            labelKey: 'news.editor.tabs.seo',
-        );
-    }
-
-    /**
-     * Sestavi zatim neimplementovanou content capability jako informativni tab
-     */
-    private function placeholderTab(string $id, string $labelKey, string $titleKey, string $descriptionKey): AdminEditorTab
-    {
-        return new AdminEditorTab(
-            id: $id,
-            label: '',
-            blocks: [
-                new SectionBlock(
-                    id: $id,
-                    blocks: [],
-                    title: '',
-                    titleKey: $titleKey,
-                    descriptionKey: $descriptionKey,
-                ),
-            ],
-            labelKey: $labelKey,
-        );
-    }
-
-    /**
-     * Sestavi article-global media tab nad shared Admin upload collection contractem
-     */
-    private function mediaTab(
-        string $id,
-        string $labelKey,
-        string $titleKey,
-        string $descriptionKey,
-        ?AdminFileUploadCollection $upload,
-    ): AdminEditorTab {
-        if ($upload === null) {
-            return $this->placeholderTab($id, $labelKey, $titleKey, $descriptionKey);
-        }
-
-        return new AdminEditorTab(
-            id: $id,
-            label: '',
-            blocks: [
-                new SectionBlock(
-                    id: $id,
-                    blocks: [new CustomViewBlock('admin::components.file-upload-collection', ['uploadCollection' => $upload])],
-                    title: '',
-                    titleKey: $titleKey,
-                    descriptionKey: $descriptionKey,
-                ),
-            ],
-            labelKey: $labelKey,
-        );
-    }
-
-    /**
-     * Sestavi publication panel a pripraveny shared upload hlavniho obrazku
-     *
-     * @param array<string,mixed> $article
-     * @param array<int,string> $ownerOptions
-     * @return list<SectionBlock>
-     */
-    private function sidebarSections(
-        array $article,
-        bool $canPublish,
-        bool $canAssignOwner,
-        array $ownerOptions,
-        ?AdminFileUploadCollection $featuredImageUpload,
-    ): array {
-        $sections = [];
-        if ($canPublish) {
-            $sections[] = new SectionBlock(
-                id: 'publication',
-                blocks: [
-                    new FieldGroupBlock([
-                        new FieldColumn(
-                            Field::select('publication_state', labelKey: 'news.fields.publication_state')
-                                ->options(array_fill_keys(array_keys(CmsPublicationState::editorOptionLabelKeys()), ''))
-                                ->optionLabelKeys(CmsPublicationState::editorOptionLabelKeys()),
-                            md: 12,
-                        ),
-                        new FieldColumn(
-                            Field::datetimeLocal('published_at', labelKey: 'news.fields.published_at'),
-                            md: 12,
-                        ),
-                    ]),
-                ],
-                title: '',
-                titleKey: 'news.editor.publication',
-                descriptionKey: 'news.editor.sections.publication_help',
-            );
-        }
-        $metadata = [
-            [
-                'labelKey' => 'news.fields.created_by',
-                'value' => trim((string) ($article['created_by_name'] ?? '')),
-                'detail' => trim((string) ($article['created_at'] ?? '')),
-            ],
-            [
-                'labelKey' => 'news.fields.updated_by',
-                'value' => trim((string) ($article['updated_by_name'] ?? '')),
-                'detail' => trim((string) ($article['updated_at'] ?? '')),
-            ],
-            [
-                'labelKey' => 'news.fields.owner',
-                'value' => trim((string) ($article['owner_name'] ?? '')),
-                'detail' => null,
-                'wide' => true,
-                'current' => true,
-            ],
-        ];
-        if (($article['deleted_at'] ?? null) !== null) {
-            $metadata[] = [
-                'labelKey' => 'news.fields.deleted_by',
-                'value' => trim((string) ($article['deleted_by_name'] ?? '')),
-                'detail' => trim((string) ($article['deleted_at'] ?? '')),
-                'wide' => true,
-            ];
-        }
-        $ownershipBlocks = [new CustomViewBlock('admin::components.editor-audit-metadata', ['metadata' => $metadata])];
-        if ($canAssignOwner) {
-            $ownershipBlocks[] = new FieldGroupBlock([new FieldColumn(
-                Field::actionSelect('owner_id', 'assign-owner', labelKey: 'news.actions.assign_owner', actionLabelKey: 'news.actions.assign_owner_submit')
-                    ->options($ownerOptions)
-                    ->attributes(['data-lemonade-searchable' => true]),
-                md: 12,
-            )]);
-        }
-        $sections[] = new SectionBlock(
-            id: 'ownership',
-            blocks: $ownershipBlocks,
-            title: '',
-            titleKey: 'news.editor.ownership',
-            descriptionKey: 'news.editor.sections.ownership_help',
-        );
-        if ($featuredImageUpload !== null) {
-            $sections[] = new SectionBlock(
-                id: 'thumbnail',
-                blocks: [
-                    new CustomViewBlock(
-                        view: 'admin::components.file-upload-collection',
-                        context: ['uploadCollection' => $featuredImageUpload],
-                    ),
-                ],
-                title: '',
-                titleKey: 'news.editor.thumbnail.title',
-                descriptionKey: 'news.editor.sections.thumbnail_help',
-            );
-        }
-
-        return $sections;
-    }
-
-    /**
-     * Prevede dostupne nazvy stitku na native select options
-     *
-     * @param list<string> $tagNames
-     * @return array<string,string>
-     */
-    private function tagOptions(array $tagNames, mixed $selectedTags): array
-    {
-        $options = [];
-        if (is_array($selectedTags)) {
-            foreach ($selectedTags as $tagName) {
-                if (is_string($tagName)) {
-                    $options[$tagName] = $tagName;
-                }
-            }
-        }
-        foreach ($tagNames as $tagName) {
-            $options[$tagName] = $tagName;
-        }
-
-        return $options;
     }
 }
