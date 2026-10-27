@@ -14,16 +14,12 @@ use PHPUnit\Framework\TestCase;
  */
 final class NewsDataTest extends TestCase
 {
-    public function testMapsExistingDisplaySettingsToRootColumns(): void
+    public function testMapsAuthorNameToRootColumn(): void
     {
-        $data = NewsData::fromEditor(['author_name' => ' Jana ', 'recommended' => '1', 'show_author' => '0']);
+        $data = NewsData::fromEditor(['author_name' => ' Jana ']);
         $mapping = new CmsDomainMapping(NewsData::class);
         self::assertSame([
-            'root' => [
-                'author_name' => 'Jana', 'recommended' => 1, 'show_author' => 0,
-                'sharing_enabled' => 1, 'show_published_at' => 1, 'show_thumbnail' => 1,
-                'show_reading_time' => 1, 'show_tags' => 1,
-            ],
+            'root' => ['author_name' => 'Jana'],
             'localized' => [],
         ], $mapping->values($data));
     }

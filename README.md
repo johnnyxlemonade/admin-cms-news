@@ -18,6 +18,12 @@ own upload transport or storage. Canonical public URLs are reserved as
 locale-unique slug paths through the shared `cms_route` contract; they do not
 inherit or require a public collection path.
 
+The article root also stores an author name and shared display settings for
+recommendation, author, sharing, publication date, main image, reading time,
+and tags. The author name is text metadata, separate from the audit owner.
+Display settings apply across translations and are metadata for the host to
+interpret.
+
 The package does not own public frontend HTML or article rendering. The host
 application provides public presentation and enforces the module's public
 publication semantics.
@@ -41,7 +47,8 @@ migration and permission-sync deployment flow before serving requests.
   publication workflow, and News-specific permissions.
 - Admin Platform owns shared Admin file collections, upload transport, and
   `system_file` metadata.
-- CMS Core owns public CMS route contracts and canonical route reservations.
+- CMS Core owns the shared content lifecycle, public CMS route contracts, and
+  canonical route reservations.
 - The host owns public rendering and public request integration.
 
 ## Development and QA

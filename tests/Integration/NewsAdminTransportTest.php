@@ -385,20 +385,22 @@ final class NewsAdminTransportTest extends TestCase
         $reader = $scope->get('cms.news.read');
         /** @var CmsContentDataGrid $grid */
         $grid = $scope->get('cms.news.grid_query');
-        $domain = NewsData::fromEditor(['author_name' => 'Domain Author', 'recommended' => '1', 'show_author' => '0', 'sharing_enabled' => '0', 'show_published_at' => '0', 'show_thumbnail' => '0', 'show_reading_time' => '0', 'show_tags' => '0']);
+        $domain = NewsData::fromEditor(['author_name' => 'Domain Author']);
         $first = $lifecycle->createDraft(7, 'cs');
         $second = $lifecycle->createDraft(9, 'cs');
         $deleted = $lifecycle->createDraft(7, 'cs');
         foreach ([$first => 'Alpha', $second => 'Bravo', $deleted => 'Charlie'] as $id => $title) {
             $lifecycle->save(9, $id, CmsContentInput::fromEditor([
                 'locale' => 'cs', 'title' => 'Read fixture ' . $title,
+                'recommended' => '1', 'show_author' => '0', 'sharing_enabled' => '0',
+                'show_published_at' => '0', 'show_thumbnail' => '0', 'show_reading_time' => '0', 'show_tags' => '0',
                 'page_title' => 'SEO ' . $title, 'summary' => 'Summary ' . $title,
                 'content' => '<p>Content ' . $title . '</p>', 'meta_description' => 'Description ' . $title,
                 'tags' => ['Zulu', 'Alpha'], 'publication_state' => $id === $second ? '1' : '2',
                 'published_at' => $id === $second ? '' : '2028-01-02T10:30',
             ]), $domain);
         }
-        $lifecycle->save(9, $first, CmsContentInput::fromEditor(['locale' => 'en', 'title' => 'Read fixture English', 'tags' => ['English tag']]), $domain);
+        $lifecycle->save(9, $first, CmsContentInput::fromEditor(['locale' => 'en', 'title' => 'Read fixture English', 'tags' => ['English tag'], 'recommended' => '1', 'show_author' => '0', 'sharing_enabled' => '0', 'show_published_at' => '0', 'show_thumbnail' => '0', 'show_reading_time' => '0', 'show_tags' => '0']), $domain);
         $lifecycle->changeUrlSegment(9, $first, 'cs', 'read-fixture-canonical');
         $db->table('cms_news_article_translation')->insert(['article_id' => $first, 'locale' => 'de', 'title' => 'Read fixture German', 'publication_state' => 1]);
         // Two equal positions exercise the existing tag-id tie breaker.

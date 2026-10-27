@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\Editor;
 
+use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Validation\ValidationSchema;
 
@@ -30,7 +32,7 @@ final readonly class NewsEditorValidationSchema
      */
     public function forUpdate(): ValidationSchema
     {
-        return ValidationSchema::create()
+        return CmsDisplaySettings::validation(ValidationSchema::create()
             ->field('locale', $this->translator->get('news.editor.content'))
                 ->required($this->translator->get('news.validation.locale_required'))
             ->field('title', $this->translator->get('news.fields.title'))
@@ -43,18 +45,11 @@ final readonly class NewsEditorValidationSchema
             ->field('meta_description', $this->translator->get('news.fields.meta_description'))
                 ->maxLength(255, $this->translator->get('news.validation.meta_description_max_length'))
             ->field('publication_state', $this->translator->get('news.fields.publication_state'))
-                ->inList(['0', '1', '2'], $this->translator->get('news.validation.publication_invalid'))
+                ->inList(array_keys(CmsPublicationState::editorOptionLabelKeys()), $this->translator->get('news.validation.publication_invalid'))
             ->field('published_at', $this->translator->get('news.fields.published_at'))
-            ->field('recommended', $this->translator->get('news.fields.recommended'))
-            ->field('show_author', $this->translator->get('news.fields.show_author'))
-            ->field('sharing_enabled', $this->translator->get('news.fields.sharing_enabled'))
-            ->field('show_published_at', $this->translator->get('news.fields.show_published_at'))
-            ->field('show_thumbnail', $this->translator->get('news.fields.show_thumbnail'))
-            ->field('show_reading_time', $this->translator->get('news.fields.show_reading_time'))
-            ->field('show_tags', $this->translator->get('news.fields.show_tags'))
             ->field('summary', $this->translator->get('news.fields.summary'))
             ->field('content', $this->translator->get('news.fields.content'))
             ->field('tags', $this->translator->get('news.fields.tags'))
-            ->end();
+            ->end(), $this->translator);
     }
 }

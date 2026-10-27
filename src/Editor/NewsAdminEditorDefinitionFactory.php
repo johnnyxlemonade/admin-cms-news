@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lemonade\Cms\News\Editor;
 
 use Lemonade\Admin\Action\Presentation\AdminActionFormDefinition;
+use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
 use Lemonade\Admin\Editor\AdminEditor\Action\AdminEditorActionDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Action\AdminEditorSaveBarDefinition;
 use Lemonade\Admin\Editor\AdminEditor\AdminEditorBuilder;
@@ -20,6 +21,7 @@ use Lemonade\Admin\Editor\AdminEditor\Layout\FieldGroupBlock;
 use Lemonade\Admin\Editor\AdminEditor\Layout\SectionBlock;
 use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Admin\Presentation\AdminFileUploadCollection;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
@@ -76,7 +78,7 @@ final readonly class NewsAdminEditorDefinitionFactory
         $builder
             ->tab($this->contentTab($translation, $contentLocale, $tagOptions))
             ->tab($this->seoTab($translation))
-            ->tab($this->settingsTab())
+            ->tab(CmsDisplaySettings::tab())
             ->tab($this->mediaTab('gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery', 'news.editor.sections.gallery_help', $galleryUpload))
             ->tab($this->mediaTab('attachments', 'admin.file_upload.attachments', 'admin.file_upload.attachments', 'news.editor.sections.attachments_help', $attachmentUpload));
 
@@ -274,76 +276,6 @@ final readonly class NewsAdminEditorDefinitionFactory
     }
 
     /**
-     * Sestavi root nastaveni publikacniho zobrazeni
-     *
-     */
-    private function settingsTab(): AdminEditorTab
-    {
-        return new AdminEditorTab(
-            id: 'settings',
-            label: '',
-            blocks: [
-                new SectionBlock(
-                    id: 'recommendation-settings',
-                    blocks: [
-                        new FieldGroupBlock([
-                            new FieldColumn(
-                                Field::toggle('recommended', labelKey: 'news.fields.recommended')
-                                    ->help('', 'news.fields.recommended_help'),
-                                md: 12,
-                            ),
-                        ]),
-                    ],
-                    title: '',
-                    titleKey: 'news.editor.sections.recommendation',
-                    descriptionKey: 'news.editor.sections.recommendation_help',
-                ),
-                new SectionBlock(
-                    id: 'display-settings',
-                    blocks: [
-                        new FieldGroupBlock([
-                            $this->displaySettingField(
-                                name: 'show_author',
-                                labelKey: 'news.fields.show_author',
-                                helpKey: 'news.fields.show_author_help',
-                            ),
-                            $this->displaySettingField(
-                                name: 'sharing_enabled',
-                                labelKey: 'news.fields.sharing_enabled',
-                                helpKey: 'news.fields.sharing_enabled_help',
-                            ),
-                            $this->displaySettingField(
-                                name: 'show_published_at',
-                                labelKey: 'news.fields.show_published_at',
-                                helpKey: 'news.fields.show_published_at_help',
-                            ),
-                            $this->displaySettingField(
-                                name: 'show_thumbnail',
-                                labelKey: 'news.fields.show_thumbnail',
-                                helpKey: 'news.fields.show_thumbnail_help',
-                            ),
-                            $this->displaySettingField(
-                                name: 'show_reading_time',
-                                labelKey: 'news.fields.show_reading_time',
-                                helpKey: 'news.fields.show_reading_time_help',
-                            ),
-                            $this->displaySettingField(
-                                name: 'show_tags',
-                                labelKey: 'news.fields.show_tags',
-                                helpKey: 'news.fields.show_tags_help',
-                            ),
-                        ]),
-                    ],
-                    title: '',
-                    titleKey: 'news.editor.sections.display',
-                    descriptionKey: 'news.editor.sections.display_help',
-                ),
-            ],
-            labelKey: 'news.editor.tabs.settings',
-        );
-    }
-
-    /**
      * Sestavi zatim neimplementovanou content capability jako informativni tab
      */
     private function placeholderTab(string $id, string $labelKey, string $titleKey, string $descriptionKey): AdminEditorTab
@@ -416,12 +348,8 @@ final readonly class NewsAdminEditorDefinitionFactory
                     new FieldGroupBlock([
                         new FieldColumn(
                             Field::select('publication_state', labelKey: 'news.fields.publication_state')
-                                ->options(['0' => '', '1' => '', '2' => ''])
-                                ->optionLabelKeys([
-                                    '0' => 'admin.status.new',
-                                    '1' => 'admin.status.draft',
-                                    '2' => 'admin.status.published',
-                                ]),
+                                ->options(array_fill_keys(array_keys(CmsPublicationState::editorOptionLabelKeys()), ''))
+                                ->optionLabelKeys(CmsPublicationState::editorOptionLabelKeys()),
                             md: 12,
                         ),
                         new FieldColumn(
@@ -494,19 +422,6 @@ final readonly class NewsAdminEditorDefinitionFactory
         }
 
         return $sections;
-    }
-
-    /**
-     * Sestavi jeden toggle root display nastaveni v responsivnim sloupci
-     *
-     */
-    private function displaySettingField(string $name, string $labelKey, string $helpKey): FieldColumn
-    {
-        return new FieldColumn(
-            Field::toggle($name, labelKey: $labelKey)
-                ->help('', $helpKey),
-            md: 6,
-        );
     }
 
     /**

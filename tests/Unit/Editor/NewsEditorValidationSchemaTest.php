@@ -38,6 +38,9 @@ final class NewsEditorValidationSchemaTest extends TestCase
             'meta_description',
             'publication_state',
             'published_at',
+            'summary',
+            'content',
+            'tags',
             'recommended',
             'show_author',
             'sharing_enabled',
@@ -45,11 +48,9 @@ final class NewsEditorValidationSchemaTest extends TestCase
             'show_thumbnail',
             'show_reading_time',
             'show_tags',
-            'summary',
-            'content',
-            'tags',
         ], array_keys($fields));
         self::assertSame('in_list', $fields['publication_state']->rules()[0]->name());
+        self::assertSame('1,2', $fields['publication_state']->rules()[0]->param());
     }
 
     /**

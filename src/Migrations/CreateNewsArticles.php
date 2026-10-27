@@ -29,13 +29,7 @@ final readonly class CreateNewsArticles implements MigrationInterface
     {
         $schema->create('cms_news_article', static function (TableBlueprint $table): void {
             CmsContentSchema::root($table, 'cms_news_article');
-            $table->boolean('recommended')->default(0);
-            $table->boolean('show_author')->default(1);
-            $table->boolean('sharing_enabled')->default(1);
-            $table->boolean('show_published_at')->default(1);
-            $table->boolean('show_thumbnail')->default(1);
-            $table->boolean('show_reading_time')->default(1);
-            $table->boolean('show_tags')->default(1);
+
         }, ifNotExists: true);
         $schema->create('cms_news_article_translation', static function (TableBlueprint $table): void {
             CmsContentSchema::translation($table, 'cms_news_article', 'article_id');

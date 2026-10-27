@@ -20,6 +20,7 @@ use Lemonade\Admin\Page\Contract\ModuleEditorPageProviderInterface;
 use Lemonade\Admin\Page\Contract\ModuleIndexPageProviderInterface;
 use Lemonade\Admin\Page\ModulePage;
 use Lemonade\Admin\Presentation\AdminFileUploadComponent;
+use Lemonade\Cms\CmsPublicationState;
 use Lemonade\Cms\Content\CmsContentReadModel;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsAdminEditorDefinitionFactory;
@@ -194,14 +195,8 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                         'page_title' => (string) ($translation['page_title'] ?? ''),
                         'meta_description' => (string) ($translation['meta_description'] ?? ''),
                         'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
-                        'recommended' => (string) ((int) ($article['recommended'] ?? 0)),
-                        'show_author' => (string) ((int) ($article['show_author'] ?? 0)),
-                        'sharing_enabled' => (string) ((int) ($article['sharing_enabled'] ?? 0)),
-                        'show_published_at' => (string) ((int) ($article['show_published_at'] ?? 0)),
-                        'show_thumbnail' => (string) ((int) ($article['show_thumbnail'] ?? 0)),
-                        'show_reading_time' => (string) ((int) ($article['show_reading_time'] ?? 0)),
-                        'show_tags' => (string) ((int) ($article['show_tags'] ?? 0)),
-                        'publication_state' => (string) ($translation['publication_state'] ?? 0),
+                        ...\Lemonade\Admin\Cms\Content\CmsDisplaySettings::values($article),
+                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->editorValue(),
                         'published_at' => (string) ($translation['published_at'] ?? ''),
                         'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
                         'created_at' => (string) ($article['created_at'] ?? ''),

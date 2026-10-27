@@ -6,6 +6,7 @@ namespace Lemonade\Cms\News\Editor;
 
 use DomainException;
 use Lemonade\Admin\Authorization\AuthorizationService;
+use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
 use Lemonade\Admin\Editor\Contract\EditorAccessPolicyInterface;
 use Lemonade\Admin\Editor\Contract\EditorFieldAccessPolicyInterface;
 use Lemonade\Admin\Editor\Contract\EditorProviderInterface;
@@ -61,13 +62,7 @@ final readonly class NewsEditor implements
                 new EditorFieldDefinition(name: 'publication_state', type: 'text', readOnly: false, permission: 'cms.news.publish_own'),
                 new EditorFieldDefinition(name: 'published_at', type: 'text', readOnly: false, permission: 'cms.news.publish_own'),
                 new EditorFieldDefinition(name: 'author_name', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'recommended', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'show_author', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'sharing_enabled', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'show_published_at', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'show_thumbnail', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'show_reading_time', type: 'text', readOnly: false, permission: null),
-                new EditorFieldDefinition(name: 'show_tags', type: 'text', readOnly: false, permission: null),
+                ...CmsDisplaySettings::fields(),
                 new EditorFieldDefinition(name: 'locale', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'title', type: 'text', readOnly: false, permission: null),
                 new EditorFieldDefinition(name: 'summary', type: 'text', readOnly: false, permission: null),
@@ -143,13 +138,7 @@ final readonly class NewsEditor implements
             'article' => [
                 'id' => null,
                 'author_name' => null,
-                'recommended' => 0,
-                'show_author' => 1,
-                'sharing_enabled' => 1,
-                'show_published_at' => 1,
-                'show_thumbnail' => 1,
-                'show_reading_time' => 1,
-                'show_tags' => 1,
+                ...CmsContentInput::DISPLAY_DEFAULTS,
                 'translations' => [],
             ],
             'locales' => $locales,
