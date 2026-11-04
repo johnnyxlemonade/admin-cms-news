@@ -23,11 +23,15 @@ return [
 
     'fields' => [
         'title' => 'Article title',
+        'title_help' => 'The title shown in news listings and on the article page.',
         'author_name' => 'Author',
+        'author_name_help' => 'The author name that can be shown on a published article.',
         'tags' => 'Tags',
-        'tags_help' => 'Enter each tag on a separate line.',
+        'tags_help' => 'Used to label and filter news articles. Select an existing tag or enter a new one.',
         'summary' => 'Summary',
+        'summary_help' => 'A short summary used in public news listings.',
         'content' => 'Content',
+        'content_help' => 'The main article text shown on its detail page.',
         'thumbnail' => 'Thumbnail',
         'recommended' => 'Recommended article',
         'recommended_help' => 'Show this article among recommended articles.',

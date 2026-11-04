@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News\DataGrid;
 
+use DateTimeImmutable;
 use Lemonade\Admin\Action\Presentation\ModuleActionPresentationFactory;
 use Lemonade\Admin\Authorization\AuthorizationService;
 use Lemonade\Admin\Cms\Content\CmsContentDataGrid;
@@ -71,10 +72,10 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
             columns: [
                 new DataGridColumnDefinition('title', 'news.fields.title', 'title'),
                 new DataGridColumnDefinition('state', 'news.fields.publication_state', 'state'),
-                new DataGridColumnDefinition('publishedAt', 'news.fields.published_at', 'publishedAt', 'd-none d-lg-table-cell', configurable: true),
-                new DataGridColumnDefinition('owner', 'news.fields.owner', class: 'd-none d-xl-table-cell', configurable: true),
+                new DataGridColumnDefinition('publishedAt', 'news.fields.published_at', 'publishedAt', configurable: true),
+                new DataGridColumnDefinition('owner', 'news.fields.owner', class: 'd-none d-xl-table-cell', configurable: true, visibleByDefault: false),
                 new DataGridColumnDefinition('createdAt', 'news.fields.created_at', configurable: true, visibleByDefault: false),
-                new DataGridColumnDefinition('updatedAt', 'news.fields.updated_at', 'updatedAt', 'd-none d-xl-table-cell', configurable: true),
+                new DataGridColumnDefinition('updatedAt', 'news.fields.updated_at', 'updatedAt', 'd-none d-xl-table-cell', configurable: true, visibleByDefault: false),
                 new DataGridColumnDefinition('deletedAt', 'news.fields.deleted_at', configurable: true, visibleByDefault: false),
                 new DataGridColumnDefinition('actions', 'admin.common.actions'),
             ],
@@ -202,7 +203,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                     $this->publicationStateLabel((int) $article['publication_state']),
                     (int) $article['publication_state'] === CmsPublicationState::Published->value ? StatusVariant::Success : StatusVariant::Muted,
                 ),
-                'publishedAt' => new ScalarCell((string) ($article['published_at'] ?? '—')),
+                'publishedAt' => new ScalarCell($this->formatDateTime($article['published_at'] ?? null)),
                 'owner' => new ScalarCell((string) ($article['owner_name'] ?? '—')),
                 'createdAt' => $this->auditMetadataCell($article['created_at'] ?? null, $article['created_by_name'] ?? null),
                 'updatedAt' => $this->auditMetadataCell($article['updated_at'] ?? null, $article['updated_by_name'] ?? null),
@@ -272,9 +273,30 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
         $actor = trim((string) $actor);
 
         return new StackedCell(
-            value: $date === '' ? '—' : $date,
+            value: $this->formatDateTime($date),
             secondary: $date === '' || $actor === '' ? '—' : $actor,
         );
+    }
+
+    /**
+     * Zobrazi datum bez sekund podle jazyka administrace
+     */
+    private function formatDateTime(mixed $value): string
+    {
+        $text = trim((string) $value);
+        if ($text === '') {
+            return '—';
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $text);
+        if ($date === false) {
+            return $text;
+        }
+
+        return $date->format(match ($this->translator->locale()) {
+            'en' => 'M j, Y H:i',
+            default => 'd. m. Y H:i',
+        });
     }
 
     /**

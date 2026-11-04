@@ -123,17 +123,20 @@ final readonly class NewsAdminEditorDefinitionFactory
                             new FieldColumn(
                                 Field::text('title', labelKey: 'news.fields.title')
                                     ->required()
+                                    ->help('', 'news.fields.title_help')
                                     ->attributes(['maxlength' => '180']),
                                 md: 12,
                             ),
                             new FieldColumn(
                                 Field::text('author_name', labelKey: 'news.fields.author_name')
+                                    ->help('', 'news.fields.author_name_help')
                                     ->attributes(['maxlength' => '255']),
                                 md: 12,
                             ),
                             CmsTagsField::column('news', $tagOptions, $translation['tags'] ?? []),
                             new FieldColumn(
-                                Field::textarea('summary', labelKey: 'news.fields.summary'),
+                                Field::textarea('summary', labelKey: 'news.fields.summary')
+                                    ->help('', 'news.fields.summary_help'),
                                 md: 12,
                             ),
                         ]),
@@ -148,6 +151,7 @@ final readonly class NewsAdminEditorDefinitionFactory
                         new FieldGroupBlock([
                             new FieldColumn(
                                 Field::textarea('content', labelKey: 'news.fields.content')
+                                    ->help('', 'news.fields.content_help')
                                     ->richText(imageUpload: true, fileUpload: true),
                                 md: 12,
                             ),

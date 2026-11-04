@@ -23,11 +23,15 @@ return [
 
     'fields' => [
         'title' => 'Titulek aktuality',
+        'title_help' => 'Název zobrazovaný ve výpisu a detailu aktuality.',
         'author_name' => 'Autor',
+        'author_name_help' => 'Jméno autora, které lze zobrazit u publikované aktuality.',
         'tags' => 'Štítky',
-        'tags_help' => 'Každý štítek zadejte na samostatný řádek.',
+        'tags_help' => 'Slouží k označení a filtrování aktualit. Vyberte existující štítek nebo zadejte nový.',
         'summary' => 'Úvodní text',
+        'summary_help' => 'Krátké shrnutí aktuality používané ve veřejném výpisu.',
         'content' => 'Obsah',
+        'content_help' => 'Hlavní text aktuality zobrazovaný na detailu.',
         'thumbnail' => 'Hlavní obrázek',
         'recommended' => 'Doporučená aktualita',
         'recommended_help' => 'Aktualita se zobrazí mezi doporučenými.',

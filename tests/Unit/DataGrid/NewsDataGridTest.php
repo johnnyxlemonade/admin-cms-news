@@ -79,6 +79,7 @@ final class NewsDataGridTest extends TestCase
 
         self::assertSame('admin.status.draft', $this->cellValue($rows[0], 'state'));
         self::assertSame('admin.status.published', $this->cellValue($rows[1], 'state'));
+        self::assertSame('20. 10. 2026 10:00', $rows[1]['cells']['publishedAt']);
     }
 
     /**
@@ -98,9 +99,9 @@ final class NewsDataGridTest extends TestCase
 
         $row = $grid->execute($this->query('cs', 'deleted'))->items()[0]->toArray();
 
-        self::assertSame(['value' => '2026-10-20 08:00:00', 'secondary' => 'Creator'], $this->stackedCell($row, 'createdAt'));
-        self::assertSame(['value' => '2026-10-21 09:00:00', 'secondary' => 'Editor'], $this->stackedCell($row, 'updatedAt'));
-        self::assertSame(['value' => '2026-10-22 10:00:00', 'secondary' => 'Deleter'], $this->stackedCell($row, 'deletedAt'));
+        self::assertSame(['value' => '20. 10. 2026 08:00', 'secondary' => 'Creator'], $this->stackedCell($row, 'createdAt'));
+        self::assertSame(['value' => '21. 10. 2026 09:00', 'secondary' => 'Editor'], $this->stackedCell($row, 'updatedAt'));
+        self::assertSame(['value' => '22. 10. 2026 10:00', 'secondary' => 'Deleter'], $this->stackedCell($row, 'deletedAt'));
     }
 
     /**
@@ -120,7 +121,7 @@ final class NewsDataGridTest extends TestCase
 
         $row = $grid->execute($this->query('cs'))->items()[0]->toArray();
 
-        self::assertSame(['value' => '2026-10-22 11:00:00', 'secondary' => 'Restorer'], $this->stackedCell($row, 'updatedAt'));
+        self::assertSame(['value' => '22. 10. 2026 11:00', 'secondary' => 'Restorer'], $this->stackedCell($row, 'updatedAt'));
         self::assertSame(['value' => '—', 'secondary' => '—'], $this->stackedCell($row, 'deletedAt'));
     }
 
