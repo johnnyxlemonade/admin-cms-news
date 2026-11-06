@@ -150,11 +150,11 @@ final class NewsAdminTransportTest extends TestCase
             }
         };
         $router = new Router();
-        $router->getNamed('admin.content.module.edit', '/admin/content/{module}/{id}', ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
-        $router->postNamed('admin.content.module.ajax.entity', '/admin/content/{module}/{id}/ajax', ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
+        $router->getNamed('admin.cms.module.edit', '/admin/cms/{module}/{id}', ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
+        $router->postNamed('admin.cms.module.ajax.entity', '/admin/cms/{module}/{id}/ajax', ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
         foreach ([
-            'admin.content.module.update' => '/admin/content/{module}/{id}/save',
-            'admin.content.module.index' => '/admin/content/{module}',
+            'admin.cms.module.update' => '/admin/cms/{module}/{id}/save',
+            'admin.cms.module.index' => '/admin/cms/{module}',
             'admin.file.chunk.start' => '/admin/files/{module}/{entity}/{usage}/start',
             'admin.file.chunk.append' => '/admin/files/{uploadId}/append',
             'admin.file.chunk.complete' => '/admin/files/{uploadId}/complete',

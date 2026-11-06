@@ -7,8 +7,8 @@
 
 `johnnyxlemonade/admin-cms-news` is an optional CMS module with the
 `cms.news` code. When present in the Composer installation, it provides News
-management at `<admin-base>/content/news` (for the standard `/admin` base path,
-`/admin/content/news`).
+management at `<admin-base>/cms/news` (for the standard `/admin` base path,
+`/admin/cms/news`).
 
 An article contains localized title, summary, content, and SEO metadata.
 Publication state and publication time belong to each localized translation;

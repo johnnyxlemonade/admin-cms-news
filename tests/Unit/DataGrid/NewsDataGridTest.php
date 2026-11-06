@@ -252,8 +252,8 @@ final class NewsDataGridTest extends TestCase
         $routes = new AdminModuleRouteResolver($moduleRegistry);
         $router = new Router();
         $router->getNamed(
-            'admin.content.module.edit',
-            '/admin/content/{module}/{id}/edit',
+            'admin.cms.module.edit',
+            '/admin/cms/{module}/{id}/edit',
             ControllerAction::for('TestController', 'edit'),
         );
         $urls = new UrlGenerator($router);

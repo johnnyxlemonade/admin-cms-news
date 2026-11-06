@@ -39,9 +39,9 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
     public function testCreatesSingleLocaleEditorWithRichTextContentField(): void
     {
         $router = new Router();
-        $router->getNamed('admin.content.module.index', '/admin/content/{module}', ControllerAction::for('NewsController', 'index'));
-        $router->postNamed('admin.content.module.update', '/admin/content/{module}/edit/{id}', ControllerAction::for('NewsController', 'update'));
-        $router->postNamed('admin.content.module.ajax.entity', '/admin/content/{module}/ajax/{id}', ControllerAction::for('NewsController', 'save'));
+        $router->getNamed('admin.cms.module.index', '/admin/cms/{module}', ControllerAction::for('NewsController', 'index'));
+        $router->postNamed('admin.cms.module.update', '/admin/cms/{module}/edit/{id}', ControllerAction::for('NewsController', 'update'));
+        $router->postNamed('admin.cms.module.ajax.entity', '/admin/cms/{module}/ajax/{id}', ControllerAction::for('NewsController', 'save'));
         $factory = new NewsAdminEditorDefinitionFactory(new UrlGenerator($router), $this->routes());
 
         $editor = $factory->create(
@@ -108,9 +108,9 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
     public function testSharedLayoutAndDomainFieldsRemainIntact(): void
     {
         $router = new Router();
-        $router->getNamed('admin.content.module.index', '/admin/content/{module}', ControllerAction::for('EditorController', 'index'));
-        $router->postNamed('admin.content.module.update', '/admin/content/{module}/edit/{id}', ControllerAction::for('EditorController', 'update'));
-        $router->postNamed('admin.content.module.ajax.entity', '/admin/content/{module}/ajax/{id}', ControllerAction::for('EditorController', 'save'));
+        $router->getNamed('admin.cms.module.index', '/admin/cms/{module}', ControllerAction::for('EditorController', 'index'));
+        $router->postNamed('admin.cms.module.update', '/admin/cms/{module}/edit/{id}', ControllerAction::for('EditorController', 'update'));
+        $router->postNamed('admin.cms.module.ajax.entity', '/admin/cms/{module}/ajax/{id}', ControllerAction::for('EditorController', 'save'));
         $factory = new NewsAdminEditorDefinitionFactory(new UrlGenerator($router), $this->routes());
         $upload = new AdminFileUploadCollection(
             moduleCode: 'news',
@@ -165,7 +165,7 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
         self::assertTrue($header->context()->items()[0]->active());
         self::assertSame('news.editor.title', $header->titleKey());
         self::assertSame('news.module.name', $header->breadcrumbs()[0]['labelKey'] ?? null);
-        self::assertSame('/admin/content/news', $header->actions()[0]->href());
+        self::assertSame('/admin/cms/news', $header->actions()[0]->href());
         self::assertTrue($header->actions()[1]->submit());
         $saveBar = $editor->saveBar();
         self::assertNotNull($saveBar);

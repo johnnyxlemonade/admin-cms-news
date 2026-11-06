@@ -70,7 +70,7 @@ final readonly class ModuleManifest implements
         return new AdminModuleMetadata(
             nameKey: 'news.module.name',
             icon: AdminIcon::Newspaper,
-            navigationGroup: AdminNavigationGroup::Content,
+            navigationGroup: AdminNavigationGroup::Cms,
             navigationOrder: 10,
             routeSegment: 'news',
             navigationPermission: 'cms.news.view_own',
