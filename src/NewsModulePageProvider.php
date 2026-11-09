@@ -157,6 +157,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
         $ownerId = $article['owner_id'] === null ? null : (int) $article['owner_id'];
         $canAssignOwner = $this->authorization->hasPermission('cms.news.assign_owner')
             && $this->authorization->canForOwner('cms.news.view', 'cms.news.view_own', $ownerId);
+        $canEdit = $this->authorization->canForOwner('cms.news.edit', 'cms.news.edit_own', $ownerId);
 
         return new ModulePage(
             view: 'admin::editor',
@@ -179,10 +180,11 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                         usage: 'thumbnail',
                         labelKey: 'news.fields.thumbnail',
                         helpKey: 'news.editor.thumbnail.help',
+                        editable: $canEdit,
                         alt: (string) ($article['translations'][0]['title'] ?? ''),
                     ),
-                    galleryUpload: $this->files->collection('cms.news', (int) $article['id'], 'gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery_help'),
-                    attachmentUpload: $this->files->collection('cms.news', (int) $article['id'], 'attachment', 'admin.file_upload.attachments', 'admin.file_upload.attachments_help'),
+                    galleryUpload: $this->files->collection('cms.news', (int) $article['id'], 'gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery_help', editable: $canEdit),
+                    attachmentUpload: $this->files->collection('cms.news', (int) $article['id'], 'attachment', 'admin.file_upload.attachments', 'admin.file_upload.attachments_help', editable: $canEdit),
                     tagOptions: $this->news->tagNamesForLocale($selected['code']),
                 ),
                 'adminEditorContext' => new AdminEditorRenderContext(
