@@ -189,7 +189,9 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
                         $names[] = $block->name();
                     } elseif ($block instanceof FieldGroupBlock) {
                         foreach ($block->columns() as $column) {
-                            $names[] = $column->field()->name();
+                            $field = $column->field();
+                            self::assertInstanceOf(AdminEditorFieldDefinition::class, $field);
+                            $names[] = $field->name();
                         }
                     }
                 }
@@ -228,7 +230,11 @@ final class NewsAdminEditorDefinitionFactoryTest extends TestCase
         self::assertSame(['publication', 'ownership', 'thumbnail'], array_map(static fn($panel): string => $panel->id(), $panels));
         $publicationFields = $panels[0]->blocks()[0];
         self::assertInstanceOf(FieldGroupBlock::class, $publicationFields);
-        self::assertSame(['publication_state', 'published_at'], array_map(static fn($column): string => $column->field()->name(), $publicationFields->columns()));
+        self::assertSame(['publication_state', 'published_at'], array_map(static function ($column): string {
+            $field = $column->field();
+            self::assertInstanceOf(AdminEditorFieldDefinition::class, $field);
+            return $field->name();
+        }, $publicationFields->columns()));
         self::assertInstanceOf(SelectField::class, $publicationFields->columns()[0]->field());
         self::assertSame('news.editor.sections.publication_help', $panels[0]->descriptionKey());
         $auditView = $panels[1]->blocks()[0];
