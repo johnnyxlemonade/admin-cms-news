@@ -93,6 +93,7 @@ final class NewsEditorAuthorizationTest extends TestCase
             $this->instanceWithoutConstructor(AdminModuleRouteResolver::class),
             $this->instanceWithoutConstructor(UrlGenerator::class),
             new AuthorizationService($principal, new Database($connection, $driver)),
+            $this->createMock(\Lemonade\Framework\Localization\TranslatorInterface::class),
         );
     }
 

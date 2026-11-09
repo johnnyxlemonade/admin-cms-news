@@ -23,6 +23,7 @@ use Lemonade\Framework\Container\ContainerInterface;
 use Lemonade\Framework\Core\BootableServiceProviderInterface;
 use Lemonade\Framework\Core\ServiceProviderInterface;
 use Lemonade\Framework\Database\Database;
+use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Support\Slug\Slugger;
 
@@ -58,6 +59,7 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
             $container->get(AdminModuleRouteResolver::class),
             $container->get(UrlGenerator::class),
             $container->get(AuthorizationService::class),
+            $container->get(TranslatorInterface::class),
         ));
         self::adminProvider()->register($container);
     }

@@ -66,7 +66,7 @@ final readonly class NewsAdminEditorDefinitionFactory
             ->header(CmsEditorHeader::create('news', $indexUrl, $context))
             ->saveBar(CmsEditorSaveBar::create());
         $builder
-            ->tab($this->contentTab($translation, $contentLocale, $tagOptions))
+            ->tab($this->contentTab($translation, $contentLocale, $tagOptions, $canPublish))
             ->tab(SeoSection::tab(pathPrefix: '/', autoGenerateUrl: trim((string) ($translation['canonical_path'] ?? '')) === ''))
             ->tab(CmsDisplaySettings::tab())
             ->tab(CmsMediaSection::gallery('news', $galleryUpload))
@@ -109,7 +109,7 @@ final readonly class NewsAdminEditorDefinitionFactory
      * @param array<string,mixed> $translation
      * @param list<string> $tagOptions
      */
-    private function contentTab(array $translation, string $contentLocale, array $tagOptions): AdminEditorTab
+    private function contentTab(array $translation, string $contentLocale, array $tagOptions, bool $canPublish): AdminEditorTab
     {
         return new AdminEditorTab(
             id: 'content',
@@ -123,8 +123,9 @@ final readonly class NewsAdminEditorDefinitionFactory
                             new FieldColumn(
                                 Field::text('title', labelKey: 'news.fields.title')
                                     ->required()
-                                    ->help('', 'news.fields.title_help')
-                                    ->attributes(['maxlength' => '180']),
+                                    ->help('', 'admin.cms_validation.required_help')
+                                    ->placeholder('', 'admin.datagrid.untitled')
+                                    ->attributes(['maxlength' => '180'] + CmsPublicationSection::requiredAttributes((int) ($translation['publication_state'] ?? 0), $canPublish)),
                                 md: 12,
                             ),
                             new FieldColumn(

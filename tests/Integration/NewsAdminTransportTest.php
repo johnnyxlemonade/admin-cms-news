@@ -211,6 +211,21 @@ final class NewsAdminTransportTest extends TestCase
         $created = $transport->dispatch('news', null, ['action' => 'create', 'payload' => []]);
         self::assertTrue($created->successful());
         $id = $created->data()['id'];
+        // Nevyplneny koncept nema technickou URL a opakovane ulozeni nic nezapisuje.
+        $draft = ['locale' => 'cs', 'title' => ''];
+        self::assertTrue($transport->dispatch('news', $id, ['action' => 'save', 'payload' => $draft])->successful());
+        self::assertSame([], $db->table('cms_route')->getArray());
+        $snapshot = $this->contentSnapshot($db);
+        self::assertTrue($transport->dispatch('news', $id, ['action' => 'save', 'payload' => $draft])->successful());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        $invalid = $transport->dispatch('news', $id, ['action' => 'save', 'payload' => ['publication_state' => '2'] + $draft]);
+        self::assertArrayHasKey('title', $invalid->errors());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        foreach ([['summary' => ['invalid'], 'content' => ['invalid']], ['page_title' => str_repeat('x', 181), 'meta_description' => str_repeat('x', 256)]] as $invalidFields) {
+            $invalid = $transport->dispatch('news', $id, ['action' => 'save', 'payload' => $invalidFields + $draft]);
+            self::assertSame(array_keys($invalidFields), array_keys($invalid->errors()));
+            self::assertSame($snapshot, $this->contentSnapshot($db));
+        }
         $payload = ['locale' => 'cs', 'title' => 'První zpráva', 'tags' => 'Praha, Brno, Praha', 'publication_state' => '2', 'published_at' => '2027-01-22T12:30'];
         $saved = $transport->dispatch('news', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($saved->successful());
@@ -223,8 +238,19 @@ final class NewsAdminTransportTest extends TestCase
         $before = $db->table('system_audit_log')->getArray();
         self::assertTrue($transport->dispatch('news', $id, ['action' => 'save', 'payload' => $payload])->successful());
         self::assertCount(count($before), $db->table('system_audit_log')->getArray());
+        $ordinary = $payload;
+        unset($ordinary['publication_state'], $ordinary['published_at']);
+        $snapshot = $this->contentSnapshot($db);
+        self::assertTrue($transport->dispatch('news', $id, ['action' => 'save', 'payload' => $ordinary])->successful());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        $invalid = $transport->dispatch('news', $id, ['action' => 'save', 'payload' => ['title' => ''] + $ordinary]);
+        self::assertArrayHasKey('title', $invalid->errors());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
+        self::assertTrue($transport->dispatch('news', $id, ['action' => 'save', 'payload' => ['publication_state' => null] + $ordinary])->successful());
+        self::assertSame($snapshot, $this->contentSnapshot($db));
         $payload['publication_state'] = '1';
         $payload['published_at'] = '';
+        $payload['title'] = '';
         $unpublished = $transport->dispatch('news', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($unpublished->successful());
         self::assertSame(['publication_state' => '1', 'published_at' => ''], $unpublished->data()['editorFields']);
@@ -238,6 +264,7 @@ final class NewsAdminTransportTest extends TestCase
         $english = ['locale' => 'en', 'title' => 'English news'];
         self::assertTrue($transport->dispatch('news', $id, ['action' => 'save', 'payload' => $english])->successful());
         self::assertSame('English news', ($db->table('cms_news_article_translation')->where('article_id', $id)->where('locale', 'en')->first() ?? [])['title'] ?? null);
+        $payload['title'] = 'První zpráva';
         $payload['publication_state'] = '2';
         $republished = $transport->dispatch('news', $id, ['action' => 'save', 'payload' => $payload]);
         self::assertTrue($republished->successful());
@@ -589,5 +616,20 @@ final class NewsAdminTransportTest extends TestCase
         self::assertIsArray($data);
 
         return $data;
+    }
+
+    /**
+     * Zachyti obsah, rezervace i audit pro kontrolu rollbacku a no-op
+     *
+     * @phpstan-impure
+     * @return array<string,list<array<string,mixed>>>
+     */
+    private function contentSnapshot(Database $db): array
+    {
+        $snapshot = [];
+        foreach (['cms_news_article', 'cms_news_article_translation', 'cms_news_article_translation_tag', 'cms_route', 'system_audit_log'] as $table) {
+            $snapshot[$table] = $db->table($table)->orderBy('id', 'ASC')->getArray();
+        }
+        return $snapshot;
     }
 }

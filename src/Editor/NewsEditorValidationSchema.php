@@ -36,7 +36,6 @@ final readonly class NewsEditorValidationSchema
             ->field('locale', $this->translator->get('news.editor.content'))
                 ->required($this->translator->get('news.validation.locale_required'))
             ->field('title', $this->translator->get('news.fields.title'))
-                ->required($this->translator->get('news.validation.title_required'))
                 ->maxLength(180, $this->translator->get('news.validation.title_max_length'))
             ->field('author_name', $this->translator->get('news.fields.author_name'))
                 ->maxLength(255, $this->translator->get('news.validation.author_max_length'))

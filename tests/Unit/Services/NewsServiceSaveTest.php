@@ -17,7 +17,7 @@ final class NewsServiceSaveTest extends TestCase
     /**
      * @dataProvider publicationScenarios
      */
-    public function testPublicationChanges(int $currentState, ?string $currentDate, int $requestedState, string $requestedDate, int $expectedState, ?string $expectedDate, bool $changed): void
+    public function testPublicationChanges(int $currentState, ?string $currentDate, ?int $requestedState, string $requestedDate, int $expectedState, ?string $expectedDate, bool $changed): void
     {
         [$state, $date, $wasChanged] = CmsPublicationChange::resolve(true, $requestedState, $requestedDate, $currentState, $currentDate, '2026-01-01 00:00:00');
         self::assertSame($expectedState, $state->value);
@@ -26,14 +26,14 @@ final class NewsServiceSaveTest extends TestCase
     }
 
     /**
-     * @return iterable<string,array{int,string|null,int,string,int,string|null,bool}>
+     * @return iterable<string,array{int,string|null,int|null,string,int,string|null,bool}>
      */
     public static function publicationScenarios(): iterable
     {
         yield 'scheduled' => [1, null, 2, '2027-01-22T12:30', 2, '2027-01-22 12:30:00', true];
         yield 'unpublish' => [2, '2027-01-22 12:30:00', 1, '', 1, null, true];
         yield 'no op' => [2, '2027-01-22 12:30:00', 2, '2027-01-22T12:30', 2, '2027-01-22 12:30:00', false];
-        yield 'new keeps published' => [2, '2027-01-22 12:30:00', 0, '', 2, '2027-01-22 12:30:00', false];
+        yield 'omitted keeps published' => [2, '2027-01-22 12:30:00', null, '', 2, '2027-01-22 12:30:00', false];
     }
 
     public function testTagsKeepNormalizedOrder(): void
@@ -56,6 +56,7 @@ final class NewsServiceSaveTest extends TestCase
     public static function invalidPublicationScenarios(): iterable
     {
         yield 'invalid state' => ['9', null];
+        yield 'internal state' => ['0', null];
         yield 'invalid date' => ['2', '2026-02-30T10:00'];
     }
 
