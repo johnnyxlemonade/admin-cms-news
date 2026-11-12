@@ -78,8 +78,6 @@ use Lemonade\Framework\Image\Value\ImageDimensions;
 use Lemonade\Framework\Image\Value\ImageFormat;
 use Lemonade\Framework\Image\Value\ImageQuality;
 use Lemonade\Framework\Image\Value\ImageVariantDefinition;
-use Lemonade\Framework\Localization\Config\LocalizationConfig;
-use Lemonade\Framework\Localization\Config\LocalizationUrlConfig;
 use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\ControllerAction;
 use Lemonade\Framework\Routing\Router;
@@ -164,7 +162,7 @@ final class NewsAdminTransportTest extends TestCase
             'admin.file.collection.reorder' => '/admin/files/{module}/{entity}/{usage}/reorder',
             'admin.file.collection.rename.modal' => '/admin/files/{module}/{entity}/{usage}/{file}/rename',
             'api.file.download' => '/files/{file}',
-            'api.image.show' => '/images/{module}/{variant}/{image}',
+            'api.image.show' => '/images/{variant}/{fileId}',
         ] as $routeName => $path) {
             $router->getNamed($routeName, $path, ControllerAction::for(self::class, 'testCreateSavePublishAndUnpublishThroughActions'));
         }
@@ -191,7 +189,7 @@ final class NewsAdminTransportTest extends TestCase
         $grids->register('cms.news', NewsDataGrid::class);
         $container->instance(ModuleActionPresentationFactory::class, new ModuleActionPresentationFactory($actions, $moduleRoutes, $authorization, $translator, new UrlGenerator($router)));
         $variants = new ImageVariantRegistry();
-        foreach (['datagrid', 'thumbnail', 'preview'] as $variant) {
+        foreach (['admin-datagrid', 'admin-thumb', 'admin-preview'] as $variant) {
             $variants->register($variant, new ImageVariantDefinition(new ImageDimensions(32, 32), ImageFormat::Webp, ImageQuality::fromInt(82)));
         }
         $container->instance(ImageUrlGenerator::class, new ImageUrlGenerator(new UrlGenerator($router), $variants));
@@ -398,7 +396,7 @@ final class NewsAdminTransportTest extends TestCase
             new DataGridQueryValidator(),
             $authorization,
             new AdminAuthorizationResponseHandler(new HttpRequestInspector(), new AdminRoutingConfiguration('/admin')),
-            new AdminUiLocale(new LocalizationConfig('cs', 'cs', ['cs', 'en'], new LocalizationUrlConfig(false, '', '', 'locale', false)), $session, $translator),
+            new AdminUiLocale($session, $translator),
             new Responses(new ResponseBuilder($http, $http)),
         );
         $this->assertSharedReading($db, $scope, $dispatcher, $authorization, $gridController);

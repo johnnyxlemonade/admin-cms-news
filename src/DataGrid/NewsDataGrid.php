@@ -188,8 +188,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
                             shape: 'rounded',
                         )
                         : $this->thumbnails->image(
-                            module: 'cms.news',
-                            imageId: (string) $featuredImage['id'],
+                            fileId: (int) $featuredImage['id'],
                             alt: $displayTitle,
                             fallback: null,
                             size: 'compact',
