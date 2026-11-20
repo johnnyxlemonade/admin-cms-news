@@ -26,13 +26,13 @@ final class NewsPublicationContractTest extends TestCase
     {
         $capturedSql = [];
         $capturedBindings = [];
-        $result = $this->createMock(DatabaseResultInterface::class);
+        $result = self::createStub(DatabaseResultInterface::class);
         $result->method('row_array')->willReturn(['numrows' => 1]);
         $result->method('result_array')->willReturn([[
             'id' => 7,
             'canonical_path' => 'test',
         ]]);
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
         $driver->method('query')->willReturnCallback(
             static function (string $sql, array $bindings = []) use (&$capturedSql, &$capturedBindings, $result): DatabaseResultInterface {
@@ -43,7 +43,7 @@ final class NewsPublicationContractTest extends TestCase
             },
         );
 
-        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->listForDataGrid(new DataGridQuery(
+        (new CmsContentDataGrid(new Database(self::createStub(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->listForDataGrid(new DataGridQuery(
             page: 1,
             pageSize: 25,
             sortKey: 'title',
@@ -73,12 +73,12 @@ final class NewsPublicationContractTest extends TestCase
     public function testDataGridLocalesIncludeDisabledLanguageWithTranslation(): void
     {
         $capturedSql = '';
-        $result = $this->createMock(DatabaseResultInterface::class);
+        $result = self::createStub(DatabaseResultInterface::class);
         $result->method('result_array')->willReturn([
             ['code' => 'cs', 'name' => 'Čeština'],
             ['code' => 'en', 'name' => 'English'],
         ]);
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
         $driver->method('query')->willReturnCallback(
             static function (string $sql) use (&$capturedSql, $result): DatabaseResultInterface {
@@ -88,7 +88,7 @@ final class NewsPublicationContractTest extends TestCase
             },
         );
 
-        $locales = (new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->dataGridLocales();
+        $locales = (new CmsContentReadModel(new Database(self::createStub(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->dataGridLocales();
 
         self::assertSame(['cs', 'en'], array_column($locales, 'code'));
         self::assertStringContainsString('LEFT JOIN cms_news_article_translation AS translation ON translation.locale = language.code', $capturedSql);
@@ -102,9 +102,9 @@ final class NewsPublicationContractTest extends TestCase
     {
         $capturedSql = '';
         $capturedBindings = [];
-        $result = $this->createMock(DatabaseResultInterface::class);
+        $result = self::createStub(DatabaseResultInterface::class);
         $result->method('result_array')->willReturn([]);
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(static fn(string $identifier): string => $identifier);
         $driver->method('query')->willReturnCallback(
             static function (string $sql, array $bindings = []) use (&$capturedSql, &$capturedBindings, $result): DatabaseResultInterface {
@@ -115,7 +115,7 @@ final class NewsPublicationContractTest extends TestCase
             },
         );
 
-        (new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->editorLocales(37);
+        (new CmsContentReadModel(new Database(self::createStub(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->editorLocales(37);
 
         self::assertStringContainsString('translation.article_id = ?', $capturedSql);
         self::assertSame([37], $capturedBindings);

@@ -58,7 +58,7 @@ final class NewsEditorValidationSchemaTest extends TestCase
      */
     private function schema(): NewsEditorValidationSchema
     {
-        $translator = $this->createMock(TranslatorInterface::class);
+        $translator = self::createStub(TranslatorInterface::class);
         $translator->method('get')->willReturnCallback(static fn(string $key): string => $key);
 
         return new NewsEditorValidationSchema($translator);

@@ -22,7 +22,7 @@ final class CreateNewsArticlesTest extends TestCase
     public function testFreshInstallRootUsesNullableLocalUserForeignKeys(): void
     {
         $statements = [];
-        $database = $this->createMock(DatabaseDriverInterface::class);
+        $database = self::createStub(DatabaseDriverInterface::class);
         $database->method('query')->willReturnCallback(
             static function (string $statement) use (&$statements): bool {
                 if (preg_match('/^CREATE TABLE(?: IF NOT EXISTS)? `([^`]+)`/', $statement, $matches) === 1) {

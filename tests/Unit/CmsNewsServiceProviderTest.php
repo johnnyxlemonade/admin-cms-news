@@ -40,7 +40,7 @@ final class CmsNewsServiceProviderTest extends TestCase
             ClientTranslationGroupRegistry::class => $groups,
             TranslationResourceRegistry::class => $resources,
         ];
-        $container = $this->createMock(ContainerInterface::class);
+        $container = self::createStub(ContainerInterface::class);
         $container->method('get')->willReturnCallback(static fn(string $id): object => $services[$id]);
 
         (new CmsNewsServiceProvider())->boot($container);

@@ -7,6 +7,7 @@ namespace Lemonade\Cms\News\Tests\Unit\Services;
 use InvalidArgumentException;
 use Lemonade\Cms\CmsPublicationChange;
 use Lemonade\Cms\CmsTagNormalizer;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -14,9 +15,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class NewsServiceSaveTest extends TestCase
 {
-    /**
-     * @dataProvider publicationScenarios
-     */
+    #[DataProvider('publicationScenarios')]
     public function testPublicationChanges(int $currentState, ?string $currentDate, ?int $requestedState, string $requestedDate, int $expectedState, ?string $expectedDate, bool $changed): void
     {
         [$state, $date, $wasChanged] = CmsPublicationChange::resolve(true, $requestedState, $requestedDate, $currentState, $currentDate, '2026-01-01 00:00:00');
@@ -41,9 +40,7 @@ final class NewsServiceSaveTest extends TestCase
         self::assertSame(['Česko', 'Praha', 'Brno'], CmsTagNormalizer::normalize("  Česko, Praha\nČesko, Brno "));
     }
 
-    /**
-     * @dataProvider invalidPublicationScenarios
-     */
+    #[DataProvider('invalidPublicationScenarios')]
     public function testInvalidPublicationIsRejected(mixed $state, mixed $date): void
     {
         $this->expectException(InvalidArgumentException::class);

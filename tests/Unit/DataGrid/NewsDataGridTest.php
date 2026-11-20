@@ -146,12 +146,12 @@ final class NewsDataGridTest extends TestCase
     public function testOwnershipScopeFiltersCountAndRowsInDatabaseQuery(): void
     {
         $queries = [];
-        $count = $this->createMock(DatabaseResultInterface::class);
+        $count = self::createStub(DatabaseResultInterface::class);
         $count->method('row_array')->willReturn(['numrows' => 0]);
-        $articles = $this->createMock(DatabaseResultInterface::class);
+        $articles = self::createStub(DatabaseResultInterface::class);
         $articles->method('result_array')->willReturn([]);
         $results = [$count, $articles];
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(
             static fn(string $identifier): string => $identifier,
         );
@@ -167,7 +167,7 @@ final class NewsDataGridTest extends TestCase
             },
         );
 
-        (new CmsContentDataGrid(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->listForDataGrid($this->query('cs'), 'cs', 42);
+        (new CmsContentDataGrid(new Database(self::createStub(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()))->listForDataGrid($this->query('cs'), 'cs', 42);
 
         self::assertCount(2, $queries);
         self::assertStringContainsString('a.owner_id = ?', $queries[0]);
@@ -201,14 +201,14 @@ final class NewsDataGridTest extends TestCase
      */
     private function grid(array $articles, array $permissions = []): NewsDataGrid
     {
-        $count = $this->createMock(DatabaseResultInterface::class);
+        $count = self::createStub(DatabaseResultInterface::class);
         $count->method('row_array')->willReturn(['numrows' => count($articles)]);
-        $articleResult = $this->createMock(DatabaseResultInterface::class);
+        $articleResult = self::createStub(DatabaseResultInterface::class);
         $articleResult->method('result_array')->willReturn($articles);
-        $fileResult = $this->createMock(DatabaseResultInterface::class);
+        $fileResult = self::createStub(DatabaseResultInterface::class);
         $fileResult->method('result_array')->willReturn([]);
         $results = [$count, $articleResult, $fileResult];
-        $driver = $this->createMock(DatabaseDriverInterface::class);
+        $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(
             static fn(string $identifier): string => $identifier,
         );
@@ -222,7 +222,7 @@ final class NewsDataGridTest extends TestCase
                 return $result;
             },
         );
-        $connection = $this->createMock(ConnectionInterface::class);
+        $connection = self::createStub(ConnectionInterface::class);
         $connection->method('select')->willReturnCallback(
             static function (string $sql) use ($permissions): array {
                 if (!str_contains($sql, 'system_role_permission')) {
@@ -240,10 +240,10 @@ final class NewsDataGridTest extends TestCase
             $database,
             new CacheManager(new ArrayCacheItemPool()),
         );
-        $principal = $this->createMock(CurrentPrincipalProviderInterface::class);
+        $principal = self::createStub(CurrentPrincipalProviderInterface::class);
         $principal->method('currentUser')->willReturn(new AuthenticatedUser(0, 'fixture@example.test'));
         $authorization = new AuthorizationService($principal, $database);
-        $translator = $this->createMock(TranslatorInterface::class);
+        $translator = self::createStub(TranslatorInterface::class);
         $translator->method('get')->willReturnCallback(
             static fn(string $key): string => $key,
         );
@@ -277,7 +277,7 @@ final class NewsDataGridTest extends TestCase
         );
 
         return new NewsDataGrid(
-            new CmsContentReadModel(new Database($this->createMock(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()),
+            new CmsContentReadModel(new Database(self::createStub(ConnectionInterface::class), $driver), CmsNewsServiceProvider::contentDefinition()),
             $authorization,
             $translator,
             $actionPresentation,
