@@ -28,12 +28,12 @@ use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
- * Sklada indexovou stranku News managementu nad shared DataGrid transportem
+ * Builds News index and editor pages from shared Admin components
  */
 final readonly class NewsModulePageProvider implements ModuleIndexPageProviderInterface, ModuleEditorPageProviderInterface
 {
     /**
-     * Nastavuje grid, authorization, preklady a URL pro News index
+     * Receives News grid, editor and shared Admin presentation services
      */
     public function __construct(
         private NewsDataGrid $grid,
@@ -48,7 +48,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     ) {}
 
     /**
-     * Vrati pravo potrebne pro otevreni News indexu
+     * Returns the permission required to open the News index
      */
     public function indexPermission(): string
     {
@@ -56,7 +56,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     }
 
     /**
-     * Vytvori standardni News index s autorizovanou create akci
+     * Builds the News index with an authorized create action
      */
     public function index(string $locale): ModulePage
     {
@@ -102,7 +102,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     }
 
     /**
-     * News nema full-page create presentation; draft se zaklada primary action
+     * Rejects the unused full-page create route because drafts use the index action
      *
      * @param array<string,string> $errors
      * @param array<string,mixed> $input
@@ -114,31 +114,13 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     }
 
     /**
-     * Vytvori full-page editor existujici News entity
+     * Builds the full-page editor for an existing News article
      *
      * @param array<string,string> $errors
      * @param array<string,mixed> $input
      * @param array<string,mixed> $query
      */
     public function editor(EditorLoaded $editor, array $errors, array $input, string $locale, array $query = []): ModulePage
-    {
-        return $this->editorPage(
-            editor: $editor,
-            errors: $errors,
-            input: $input,
-            locale: $locale,
-            query: $query,
-        );
-    }
-
-    /**
-     * Pripravi package-owned editor view pro jeden content locale context
-     *
-     * @param array<string,string> $errors
-     * @param array<string,mixed> $input
-     * @param array<string,mixed> $query
-     */
-    private function editorPage(EditorLoaded $editor, array $errors, array $input, string $locale, array $query = []): ModulePage
     {
         $locales = $editor->data()['locales'];
         $selected = $this->resolveContentLocale($locales, $query);
@@ -198,7 +180,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                         'meta_description' => (string) ($translation['meta_description'] ?? ''),
                         'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
                         ...\Lemonade\Admin\Cms\Content\CmsDisplaySettings::values($article),
-                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->editorValue(),
+                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->getEditorValue(),
                         'published_at' => (string) ($translation['published_at'] ?? ''),
                         'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
                         'created_at' => (string) ($article['created_at'] ?? ''),
@@ -221,7 +203,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     }
 
     /**
-     * Sestavi options nesmazanych lokalnich uzivatelu pro ownership transfer
+     * Returns assignable local users as owner options
      *
      * @return array<int,string>
      */
@@ -236,7 +218,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     }
 
     /**
-     * Vybere povoleny content locale podle explicitniho query contextu
+     * Selects an available content locale from the request context
      *
      * @param list<array<string,mixed>> $locales
      * @param array<string,mixed> $query
@@ -265,7 +247,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     }
 
     /**
-     * Vytvori linkove prepinani dostupnych content locales editoru
+     * Builds editor links for available content locales
      *
      * @param list<array<string,mixed>> $locales
      */

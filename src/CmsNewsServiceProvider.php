@@ -17,6 +17,7 @@ use Lemonade\Cms\Content\Models\CmsContentModel;
 use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsEditor;
 use Lemonade\Cms\News\Editor\NewsEditorValidationSchema;
+use Lemonade\Cms\News\Public\PublishedNewsReadModel;
 use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
 use Lemonade\Framework\Container\ContainerBuilderInterface;
 use Lemonade\Framework\Container\ContainerInterface;
@@ -28,15 +29,16 @@ use Lemonade\Framework\Routing\UrlGenerator;
 use Lemonade\Framework\Support\Slug\Slugger;
 
 /**
- * Pripojuje modul k existujicimu sdilenemu CMS Admin transportu
+ * Connects News to the shared CMS Admin transport and public reader
  */
 final readonly class CmsNewsServiceProvider implements ServiceProviderInterface, BootableServiceProviderInterface
 {
     /**
-     * Registruje editorove action transporty modulu
+     * Registers News services before the container is frozen
      */
     public function register(ContainerBuilderInterface $container): void
     {
+        $container->scoped(PublishedNewsReadModel::class, PublishedNewsReadModel::class);
         $container->scoped('cms.news.definition', static fn(): CmsContentDefinition => self::contentDefinition());
         $container->scoped('cms.news.content_model', static fn(ContainerInterface $container): CmsContentModel => new CmsContentModel(
             $container->get(Database::class),
@@ -65,7 +67,7 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
     }
 
     /**
-     * Vrati registrovane tabulky a atributove mapovani obsahu
+     * Returns the News table and domain mapping definition
      */
     public static function contentDefinition(): CmsContentDefinition
     {
@@ -83,7 +85,7 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
     }
 
     /**
-     * Pripoji preklady, grid, editor, stranky a akce modulu
+     * Connects News resources and Admin contributions after registration
      */
     public function boot(ContainerInterface $container): void
     {
@@ -91,7 +93,7 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
     }
 
     /**
-     * Nastavi stavajici presentation a action providery modulu
+     * Creates the shared CMS Admin provider for News
      */
     public static function adminProvider(): CmsContentAdminProvider
     {

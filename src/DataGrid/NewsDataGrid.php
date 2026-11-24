@@ -34,12 +34,12 @@ use Lemonade\Framework\Localization\TranslatorInterface;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
- * Promita News clanky do shared Admin DataGridu bez translation N+1 dotazu
+ * Projects News articles into the shared Admin DataGrid without per-row queries
  */
 final readonly class NewsDataGrid implements DataGridProviderInterface
 {
     /**
-     * Nastavuje News persistence projekci pro DataGrid
+     * Receives News queries, authorization and grid presentation services
      */
     public function __construct(
         private CmsContentReadModel $news,
@@ -55,7 +55,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     ) {}
 
     /**
-     * Vrati pravo potrebne pro nacteni News prehledu
+     * Returns the permission required to read the News grid
      */
     public function permission(): string
     {
@@ -63,7 +63,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Deklaruje sloupce, search, filtry a deterministic razeni prehledu
+     * Defines columns, filters and deterministic sorting for News
      */
     public function dataGridDefinition(): DataGridDefinition
     {
@@ -110,7 +110,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Vrati typed radky z jedine batch projekce News modelu
+     * Returns typed rows from a batched News projection
      */
     public function execute(DataGridQuery $query): DataGridResult
     {
@@ -141,7 +141,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Promita jeden clanek na odkazovatelny aktivni nebo read-only smazany radek
+     * Projects one article into an active or deleted grid row
      *
      * @param array<string,mixed> $article
      * @param array{
@@ -213,7 +213,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Vrati lokalizovany label publication stavu z databazove hodnoty
+     * Returns the localized label for a stored publication state
      */
     private function publicationStateLabel(int $value): string
     {
@@ -227,7 +227,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Nabizi editaci pouze jako neautoritativni presentation akci
+     * Offers row actions as presentation after authorization checks
      *
      * @return list<DataGridRowActionDefinition>
      */
@@ -264,7 +264,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Zobrazi auditni datum nad identitou uzivatele
+     * Stacks an audit date above the actor name
      */
     private function auditMetadataCell(mixed $date, mixed $actor): StackedCell
     {
@@ -278,7 +278,7 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Zobrazi datum bez sekund podle jazyka administrace
+     * Formats a date without seconds for the Admin UI locale
      */
     private function formatDateTime(mixed $value): string
     {
@@ -299,15 +299,15 @@ final readonly class NewsDataGrid implements DataGridProviderInterface
     }
 
     /**
-     * Sklada canonical URL editoru s explicitni content locale mutace
+     * Builds the Admin editor URL for a selected content locale
      */
-    private function editUrl(int $articleId, ?string $contentLocale = null): string
+    private function editUrl(int $articleId, string $contentLocale): string
     {
         $url = $this->urls->route(
             $this->routes->managementRouteName('news', 'edit'),
             ['module' => 'news', 'id' => $articleId],
         );
 
-        return $contentLocale === null ? $url : $url . '?locale=' . rawurlencode($contentLocale);
+        return $url . '?locale=' . rawurlencode($contentLocale);
     }
 }

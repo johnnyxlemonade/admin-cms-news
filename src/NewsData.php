@@ -9,20 +9,28 @@ use Lemonade\Cms\Content\CmsContentValidationException;
 use Lemonade\Cms\Content\CmsRoot;
 
 /**
- * Predstavuje autorske metadata jedne aktuality
+ * Represents the author metadata of one News article
  */
 final readonly class NewsData
 {
     /**
-     * Nastavuje textove jmeno autora
+     * Creates the author metadata stored on the article root
      */
     public function __construct(
         #[CmsRoot('author_name')]
-        public ?string $authorName,
+        private ?string $authorName,
     ) {}
 
     /**
-     * Validuje a normalizuje domenove hodnoty editoru
+     * Returns the optional author name
+     */
+    public function getAuthorName(): ?string
+    {
+        return $this->authorName;
+    }
+
+    /**
+     * Validates and normalizes the author name submitted by the editor
      *
      * @param array<string,mixed> $data
      */

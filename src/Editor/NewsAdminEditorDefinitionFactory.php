@@ -27,12 +27,12 @@ use Lemonade\Admin\Presentation\AdminFileUploadCollection;
 use Lemonade\Framework\Routing\UrlGenerator;
 
 /**
- * Sklada full-page editor Aktualit se shared taby, fieldy a save barem
+ * Builds the News editor from shared tabs, fields and save controls
  */
 final readonly class NewsAdminEditorDefinitionFactory
 {
     /**
-     * Nastavuje generator canonical Admin URL
+     * Receives canonical Admin URL and module route services
      */
     public function __construct(
         private UrlGenerator $urls,
@@ -40,9 +40,9 @@ final readonly class NewsAdminEditorDefinitionFactory
     ) {}
 
     /**
-     * Vytvori editor pro jednu content mutation a autorizovany publication panel
+     * Builds an editor for one content locale and its authorized controls
      *
-     * @param array{id:int|null,translations:list<array<string,mixed>>} $article
+     * @param array{id:int,translations:list<array<string,mixed>>} $article
      * @param list<string> $tagOptions
      * @param array<int,string> $ownerOptions
      */
@@ -88,7 +88,7 @@ final readonly class NewsAdminEditorDefinitionFactory
     }
 
     /**
-     * Sestavi transportni formular pro ulozeni existujiciho News draftu
+     * Builds the action form used to save an existing article
      */
     private function editorForm(int $articleId, string $contentLocale): AdminActionFormDefinition
     {
@@ -104,7 +104,7 @@ final readonly class NewsAdminEditorDefinitionFactory
     }
 
     /**
-     * Sestavi lokalizovany obsah a rich-text body editoru
+     * Builds the localized content and rich-text editor tab
      *
      * @param array<string,mixed> $translation
      * @param list<string> $tagOptions

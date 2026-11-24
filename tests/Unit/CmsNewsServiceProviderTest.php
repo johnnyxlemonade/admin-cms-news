@@ -10,6 +10,7 @@ use Lemonade\Admin\Editor\EditorRegistry;
 use Lemonade\Admin\Localization\ClientTranslationGroupRegistry;
 use Lemonade\Admin\Page\ModulePageRegistry;
 use Lemonade\Cms\News\CmsNewsServiceProvider;
+use Lemonade\Cms\News\Public\PublishedNewsReadModel;
 use Lemonade\Framework\Container\Container;
 use Lemonade\Framework\Container\ContainerInterface;
 use Lemonade\Framework\Localization\TranslationResourceRegistry;
@@ -66,6 +67,7 @@ final class CmsNewsServiceProviderTest extends TestCase
         (new CmsNewsServiceProvider())->register($container);
 
         self::assertTrue($container->isBound('admin.cms.news.action.create'));
+        self::assertTrue($container->isBound(PublishedNewsReadModel::class));
         self::assertSame([], iterator_to_array($container->tagged(RouteRegistrarInterface::class)));
     }
 }

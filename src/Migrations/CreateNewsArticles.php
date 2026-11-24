@@ -10,12 +10,12 @@ use Lemonade\Framework\Database\Schema\Blueprint\TableBlueprint;
 use Lemonade\Framework\Database\Schema\Schema;
 
 /**
- * Vytvari oddelene tabulky aktualit a jejich lokalizovanych mutaci
+ * Creates News article roots and their localized translations
  */
 final readonly class CreateNewsArticles implements MigrationInterface
 {
     /**
-     * Vrati stabilni identifikator migrace aktualit
+     * Returns the stable News migration identifier
      */
     public static function identifier(): string
     {
@@ -23,13 +23,12 @@ final readonly class CreateNewsArticles implements MigrationInterface
     }
 
     /**
-     * Vytvori spolecne CMS sloupce a domenove volby aktualit
+     * Creates News tables using the shared CMS content schema
      */
     public function up(Schema $schema): void
     {
         $schema->create('cms_news_article', static function (TableBlueprint $table): void {
             CmsContentSchema::root($table, 'cms_news_article');
-
         }, ifNotExists: true);
         $schema->create('cms_news_article_translation', static function (TableBlueprint $table): void {
             CmsContentSchema::translation($table, 'cms_news_article', 'article_id');
