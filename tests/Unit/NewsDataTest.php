@@ -10,7 +10,7 @@ use Lemonade\Cms\News\NewsData;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje mapovani a validaci domenovych hodnot aktuality
+ * Verifies mapping and validation of News domain values
  */
 final class NewsDataTest extends TestCase
 {

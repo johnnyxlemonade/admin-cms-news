@@ -6,8 +6,10 @@ namespace Lemonade\Cms\News;
 
 use Lemonade\Admin\Action\Presentation\AdminActionFormDefinition;
 use Lemonade\Admin\Authorization\AuthorizationService;
+use Lemonade\Admin\Cms\Content\CmsDisplaySettings;
 use Lemonade\Admin\DataGrid\DataGridIndexViewModel;
 use Lemonade\Admin\DataGrid\DataGridPrimaryAction;
+use Lemonade\Admin\Editor\AdminEditor\AdminEditorDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Header\AdminEditorHeaderContextDefinition;
 use Lemonade\Admin\Editor\AdminEditor\Header\AdminEditorHeaderContextItem;
 use Lemonade\Admin\Editor\AdminEditor\Rendering\AdminEditorRenderContext;
@@ -60,25 +62,6 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
      */
     public function index(string $locale): ModulePage
     {
-        $primaryAction = $this->authorization->hasPermission('cms.news.create')
-            ? DataGridPrimaryAction::action(
-                translationKey: 'news.actions.create',
-                icon: AdminIcon::PlusLg,
-                form: new AdminActionFormDefinition(
-                    id: 'news-create-draft-form',
-                    action: $this->urls->route(
-                        name: $this->routes->managementRouteName('news', 'store'),
-                        params: ['module' => 'news'],
-                    ),
-                    actionUrl: $this->urls->route(
-                        name: $this->routes->managementRouteName('news', 'ajax.create'),
-                        params: ['module' => 'news'],
-                    ),
-                    actionKey: 'create',
-                    navigateToEditAfterCreate: true,
-                ),
-            )
-            : null;
         $viewModel = new DataGridIndexViewModel(
             moduleCode: 'news',
             title: $this->translator->get('news.list.title'),
@@ -88,7 +71,7 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
                 params: ['module' => 'news'],
             ),
             definition: $this->grid->dataGridDefinition(),
-            primaryAction: $primaryAction,
+            primaryAction: $this->createPrimaryAction(),
             loadingText: $this->translator->get('news.list.loading'),
             emptyText: $this->translator->get('news.list.empty'),
             errorText: $this->translator->get('admin.datagrid.errorDescription'),
@@ -124,18 +107,8 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
     {
         $locales = $editor->data()['locales'];
         $selected = $this->resolveContentLocale($locales, $query);
-        $article = $editor->data()['article'];
-        $article['translations'] = array_values(array_filter(
-            $article['translations'],
-            static fn(array $translation): bool => $translation['locale'] === $selected['code'],
-        ));
+        $article = $this->articleForLocale($editor->data()['article'], $selected['code']);
         $translation = $article['translations'][0] ?? [];
-        $canonicalPath = trim((string) ($translation['canonical_path'] ?? ''), '/');
-        $context = $this->localeContext(
-            locales: $locales,
-            selectedLocale: $selected['code'],
-            articleId: $article['id'],
-        );
         $ownerId = $article['owner_id'] === null ? null : (int) $article['owner_id'];
         $canAssignOwner = $this->authorization->hasPermission('cms.news.assign_owner')
             && $this->authorization->canForOwner('cms.news.view', 'cms.news.view_own', $ownerId);
@@ -145,61 +118,164 @@ final readonly class NewsModulePageProvider implements ModuleIndexPageProviderIn
             view: 'admin::editor',
             title: $this->translator->get('news.editor.title'),
             data: [
-                'adminEditor' => $this->adminEditorDefinitions->create(
+                'adminEditor' => $this->createAdminEditor(
                     article: $article,
                     contentLocale: $selected['code'],
-                    canPublish: $this->authorization->canForOwner(
-                        'cms.news.publish',
-                        'cms.news.publish_own',
-                        $ownerId,
-                    ),
+                    locales: $locales,
+                    ownerId: $ownerId,
                     canAssignOwner: $canAssignOwner,
-                    ownerOptions: $canAssignOwner ? $this->ownerOptions() : [],
-                    context: $context,
-                    featuredImageUpload: $this->files->collection(
-                        module: 'cms.news',
-                        entityId: (int) $article['id'],
-                        usage: 'thumbnail',
-                        labelKey: 'news.fields.thumbnail',
-                        helpKey: 'news.editor.thumbnail.help',
-                        editable: $canEdit,
-                        alt: (string) ($article['translations'][0]['title'] ?? ''),
-                    ),
-                    galleryUpload: $this->files->collection('cms.news', (int) $article['id'], 'gallery', 'admin.file_upload.gallery', 'admin.file_upload.gallery_help', editable: $canEdit),
-                    attachmentUpload: $this->files->collection('cms.news', (int) $article['id'], 'attachment', 'admin.file_upload.attachments', 'admin.file_upload.attachments_help', editable: $canEdit),
-                    tagOptions: $this->news->tagNamesForLocale($selected['code']),
+                    canEdit: $canEdit,
                 ),
-                'adminEditorContext' => new AdminEditorRenderContext(
-                    values: [
-                        'title' => (string) ($translation['title'] ?? ''),
-                        'author_name' => (string) ($article['author_name'] ?? ''),
-                        'tags' => $translation['tags'] ?? [],
-                        'summary' => (string) ($translation['summary'] ?? ''),
-                        'content' => (string) ($translation['content'] ?? ''),
-                        'page_title' => (string) ($translation['page_title'] ?? ''),
-                        'meta_description' => (string) ($translation['meta_description'] ?? ''),
-                        'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
-                        ...\Lemonade\Admin\Cms\Content\CmsDisplaySettings::values($article),
-                        'publication_state' => CmsPublicationState::from((int) ($translation['publication_state'] ?? CmsPublicationState::New->value))->getEditorValue(),
-                        'published_at' => (string) ($translation['published_at'] ?? ''),
-                        'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
-                        'created_at' => (string) ($article['created_at'] ?? ''),
-                        'updated_by_name' => (string) ($article['updated_by_name'] ?? '—'),
-                        'updated_at' => (string) ($article['updated_at'] ?? ''),
-                        'owner_name' => (string) ($article['owner_name'] ?? '—'),
-                        'owner_id' => $ownerId === null ? '' : (string) $ownerId,
-                        'deleted_by_name' => (string) ($article['deleted_by_name'] ?? '—'),
-                        'deleted_at' => (string) ($article['deleted_at'] ?? ''),
-                    ],
-                    oldInput: $input,
+                'adminEditorContext' => $this->createRenderContext(
+                    article: $article,
+                    translation: $translation,
+                    ownerId: $ownerId,
+                    input: $input,
                     errors: $errors,
-                    mode: 'edit',
-                    moduleCode: 'cms.news',
-                    entityId: (int) $article['id'],
                 ),
                 'locale' => $locale,
             ],
         );
+    }
+
+    private function createPrimaryAction(): ?DataGridPrimaryAction
+    {
+        if (!$this->authorization->hasPermission('cms.news.create')) {
+            return null;
+        }
+
+        return DataGridPrimaryAction::action(
+            translationKey: 'news.actions.create',
+            icon: AdminIcon::PlusLg,
+            form: new AdminActionFormDefinition(
+                id: 'news-create-draft-form',
+                action: $this->urls->route(
+                    name: $this->routes->managementRouteName('news', 'store'),
+                    params: ['module' => 'news'],
+                ),
+                actionUrl: $this->urls->route(
+                    name: $this->routes->managementRouteName('news', 'ajax.create'),
+                    params: ['module' => 'news'],
+                ),
+                actionKey: 'create',
+                navigateToEditAfterCreate: true,
+            ),
+        );
+    }
+
+    /**
+     * @param array{id:int,translations:list<array<string,mixed>>} $article
+     * @param list<array<string,mixed>> $locales
+     */
+    private function createAdminEditor(
+        array $article,
+        string $contentLocale,
+        array $locales,
+        ?int $ownerId,
+        bool $canAssignOwner,
+        bool $canEdit,
+    ): AdminEditorDefinition {
+        $articleId = (int) $article['id'];
+
+        return $this->adminEditorDefinitions->create(
+            article: $article,
+            contentLocale: $contentLocale,
+            canPublish: $this->authorization->canForOwner(
+                'cms.news.publish',
+                'cms.news.publish_own',
+                $ownerId,
+            ),
+            canAssignOwner: $canAssignOwner,
+            ownerOptions: $canAssignOwner ? $this->ownerOptions() : [],
+            context: $this->localeContext($locales, $contentLocale, $articleId),
+            featuredImageUpload: $this->files->collection(
+                module: 'cms.news',
+                entityId: $articleId,
+                usage: 'thumbnail',
+                labelKey: 'news.fields.thumbnail',
+                helpKey: 'news.editor.thumbnail.help',
+                editable: $canEdit,
+                alt: (string) ($article['translations'][0]['title'] ?? ''),
+            ),
+            galleryUpload: $this->files->collection(
+                module: 'cms.news',
+                entityId: $articleId,
+                usage: 'gallery',
+                labelKey: 'admin.file_upload.gallery',
+                helpKey: 'admin.file_upload.gallery_help',
+                editable: $canEdit,
+            ),
+            attachmentUpload: $this->files->collection(
+                module: 'cms.news',
+                entityId: $articleId,
+                usage: 'attachment',
+                labelKey: 'admin.file_upload.attachments',
+                helpKey: 'admin.file_upload.attachments_help',
+                editable: $canEdit,
+            ),
+            tagOptions: $this->news->tagNamesForLocale($contentLocale),
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $article
+     * @param array<string,mixed> $translation
+     * @param array<string,mixed> $input
+     * @param array<string,string> $errors
+     */
+    private function createRenderContext(
+        array $article,
+        array $translation,
+        ?int $ownerId,
+        array $input,
+        array $errors,
+    ): AdminEditorRenderContext {
+        $canonicalPath = trim((string) ($translation['canonical_path'] ?? ''), '/');
+
+        return new AdminEditorRenderContext(
+            values: [
+                'title' => (string) ($translation['title'] ?? ''),
+                'author_name' => (string) ($article['author_name'] ?? ''),
+                'tags' => $translation['tags'] ?? [],
+                'summary' => (string) ($translation['summary'] ?? ''),
+                'content' => (string) ($translation['content'] ?? ''),
+                'page_title' => (string) ($translation['page_title'] ?? ''),
+                'meta_description' => (string) ($translation['meta_description'] ?? ''),
+                'url_segment' => $canonicalPath === '' ? '' : basename($canonicalPath),
+                ...CmsDisplaySettings::values($article),
+                'publication_state' => CmsPublicationState::from(
+                    (int) ($translation['publication_state'] ?? CmsPublicationState::New->value),
+                )->getEditorValue(),
+                'published_at' => (string) ($translation['published_at'] ?? ''),
+                'created_by_name' => (string) ($article['created_by_name'] ?? '—'),
+                'created_at' => (string) ($article['created_at'] ?? ''),
+                'updated_by_name' => (string) ($article['updated_by_name'] ?? '—'),
+                'updated_at' => (string) ($article['updated_at'] ?? ''),
+                'owner_name' => (string) ($article['owner_name'] ?? '—'),
+                'owner_id' => $ownerId === null ? '' : (string) $ownerId,
+                'deleted_by_name' => (string) ($article['deleted_by_name'] ?? '—'),
+                'deleted_at' => (string) ($article['deleted_at'] ?? ''),
+            ],
+            oldInput: $input,
+            errors: $errors,
+            mode: 'edit',
+            moduleCode: 'cms.news',
+            entityId: (int) $article['id'],
+        );
+    }
+
+    /**
+     * @param array{id:int,owner_id:int|null,translations:list<array<string,mixed>>} $article
+     * @return array{id:int,owner_id:int|null,translations:list<array<string,mixed>>}
+     */
+    private function articleForLocale(array $article, string $contentLocale): array
+    {
+        $article['translations'] = array_values(array_filter(
+            $article['translations'],
+            static fn(array $translation): bool => $translation['locale'] === $contentLocale,
+        ));
+
+        return $article;
     }
 
     /**

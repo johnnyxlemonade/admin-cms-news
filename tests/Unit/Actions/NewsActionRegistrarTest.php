@@ -9,12 +9,12 @@ use Lemonade\Cms\News\CmsNewsServiceProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje explicitni registraci News actions a jejich permission hranice
+ * Verifies explicit News action registration and permission boundaries
  */
 final class NewsActionRegistrarTest extends TestCase
 {
     /**
-     * Registruje URL akci oddelene od standardniho editoroveho save
+     * Verifies URL and ownership actions independently from editor save
      */
     public function testRegistersIndependentUrlChangeAction(): void
     {

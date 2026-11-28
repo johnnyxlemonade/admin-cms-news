@@ -18,12 +18,12 @@ use Lemonade\Framework\Routing\RouteRegistrarInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje oddeleni administracniho News modulu od verejneho routingu hosta
+ * Verifies News service registration without activating host public routes
  */
 final class CmsNewsServiceProviderTest extends TestCase
 {
     /**
-     * Ověří napojení stávajících registrů i oddělená oprávnění akcí
+     * Verifies existing Admin registries and separate action permissions
      */
     public function testBootRegistersExistingAdminCapabilities(): void
     {
@@ -58,7 +58,7 @@ final class CmsNewsServiceProviderTest extends TestCase
     }
 
     /**
-     * Registruje pouze administracni sluzby bez verejnych rout
+     * Verifies service registration without public route registrars
      */
     public function testItDoesNotActivatePublicNewsRouting(): void
     {

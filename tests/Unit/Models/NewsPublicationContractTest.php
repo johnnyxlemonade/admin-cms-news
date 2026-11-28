@@ -15,12 +15,12 @@ use Lemonade\Framework\Database\DatabaseResultInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje per-locale persistence shared publication lifecycle Aktualit
+ * Verifies News-specific SQL mapping into the shared publication lifecycle
  */
 final class NewsPublicationContractTest extends TestCase
 {
     /**
-     * DataGrid zobrazuje a vyhledava canonical cestu z cms_route
+     * Verifies canonical route projection and search in the DataGrid query
      */
     public function testDataGridReadsCanonicalPathFromCmsRoute(): void
     {
@@ -68,7 +68,7 @@ final class NewsPublicationContractTest extends TestCase
     }
 
     /**
-     * Locale filtr nabizi aktivni jazyky i deaktivovany jazyk s mutaci
+     * Verifies active locales and disabled locales with existing translations
      */
     public function testDataGridLocalesIncludeDisabledLanguageWithTranslation(): void
     {
@@ -96,7 +96,7 @@ final class NewsPublicationContractTest extends TestCase
     }
 
     /**
-     * Editor locale JOIN predava identitu aktuality jako binding
+     * Verifies article identity binding in the editor locale join
      */
     public function testEditorLocalesBindArticleIdentityInJoin(): void
     {

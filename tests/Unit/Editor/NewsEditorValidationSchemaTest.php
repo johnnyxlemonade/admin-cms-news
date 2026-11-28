@@ -9,12 +9,12 @@ use Lemonade\Framework\Localization\TranslatorInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje frameworkovy validation contract create a update editoru Aktualit
+ * Verifies create and update validation schemas for the News editor
  */
 final class NewsEditorValidationSchemaTest extends TestCase
 {
     /**
-     * Create nevynucuje zadny formularovy vstup pred zalozenim draftu
+     * Verifies that draft creation requires no form fields
      */
     public function testCreateDoesNotRequireFormFields(): void
     {
@@ -24,7 +24,7 @@ final class NewsEditorValidationSchemaTest extends TestCase
     }
 
     /**
-     * Update schema pokryva jednu lokalizovanou mutation i globalni metadata
+     * Verifies the flat localized update payload and root metadata
      */
     public function testUpdateDefinesTheFlatEditorPayload(): void
     {
@@ -54,7 +54,7 @@ final class NewsEditorValidationSchemaTest extends TestCase
     }
 
     /**
-     * Vytvori schemata se stabilnimi prekladovymi klici pro validacni zpravy
+     * Creates schemas with stable validation translation keys
      */
     private function schema(): NewsEditorValidationSchema
     {

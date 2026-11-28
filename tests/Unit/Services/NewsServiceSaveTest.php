@@ -11,14 +11,28 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje publikacni a tagovy kontrakt prevzaty spolecnym lifecycle
+ * Verifies shared publication and tag rules used by News
  */
 final class NewsServiceSaveTest extends TestCase
 {
     #[DataProvider('publicationScenarios')]
-    public function testPublicationChanges(int $currentState, ?string $currentDate, ?int $requestedState, string $requestedDate, int $expectedState, ?string $expectedDate, bool $changed): void
-    {
-        [$state, $date, $wasChanged] = CmsPublicationChange::resolve(true, $requestedState, $requestedDate, $currentState, $currentDate, '2026-01-01 00:00:00');
+    public function testPublicationChanges(
+        int $currentState,
+        ?string $currentDate,
+        ?int $requestedState,
+        string $requestedDate,
+        int $expectedState,
+        ?string $expectedDate,
+        bool $changed,
+    ): void {
+        [$state, $date, $wasChanged] = CmsPublicationChange::resolve(
+            true,
+            $requestedState,
+            $requestedDate,
+            $currentState,
+            $currentDate,
+            '2026-01-01 00:00:00',
+        );
         self::assertSame($expectedState, $state->value);
         self::assertSame($expectedDate, $date);
         self::assertSame($changed, $wasChanged);

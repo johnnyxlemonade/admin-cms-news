@@ -43,12 +43,12 @@ use Lemonade\Image\ImageVariantRegistry;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje locale a publication projekci News DataGridu
+ * Verifies locale, publication and authorization projection in the News DataGrid
  */
 final class NewsDataGridTest extends TestCase
 {
     /**
-     * Prazdna existujici mutace pouziva shared placeholder a ulozeny stav
+     * Verifies placeholder projection for an existing empty translation
      */
     public function testExistingEmptyTranslationUsesSharedPlaceholderAndPersistedState(): void
     {
@@ -63,7 +63,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Draft i publikovana mutace zustavaji ve zvolenem locale viditelne
+     * Verifies stored publication states in the selected locale
      */
     public function testDraftAndPublishedTranslationsKeepTheirPublicationState(): void
     {
@@ -83,7 +83,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Auditni metadata oddeli datum a uzivatele pro smazany zaznam
+     * Verifies deletion audit metadata as a stacked cell
      */
     public function testDeletedRowUsesStackedAuditMetadata(): void
     {
@@ -105,7 +105,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Obnoveny zaznam zobrazi obnovujiciho uzivatele a prazdne smazani
+     * Verifies restored audit metadata and the empty deletion fallback
      */
     public function testRestoredRowUsesUpdatedMetadataAndDeletedFallback(): void
     {
@@ -126,7 +126,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Explicitni locale filtr zachova existujici mutaci deaktivovaneho jazyka
+     * Verifies an existing translation for an explicitly selected disabled locale
      */
     public function testExistingTranslationRemainsVisibleForExplicitDisabledLocale(): void
     {
@@ -141,7 +141,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Own-only News scope je soucasti count i data dotazu
+     * Verifies owner scope in both count and row queries
      */
     public function testOwnershipScopeFiltersCountAndRowsInDatabaseQuery(): void
     {
@@ -150,20 +150,15 @@ final class NewsDataGridTest extends TestCase
         $count->method('row_array')->willReturn(['numrows' => 0]);
         $articles = self::createStub(DatabaseResultInterface::class);
         $articles->method('result_array')->willReturn([]);
-        $results = [$count, $articles];
         $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(
             static fn(string $identifier): string => $identifier,
         );
         $driver->method('query')->willReturnCallback(
-            static function (string $sql) use (&$queries, &$results): DatabaseResultInterface {
+            static function (string $sql) use (&$queries, $count, $articles): DatabaseResultInterface {
                 $queries[] = $sql;
-                $result = array_shift($results);
-                if (!$result instanceof DatabaseResultInterface) {
-                    throw new \LogicException('Unexpected News ownership query.');
-                }
 
-                return $result;
+                return str_contains($sql, 'COUNT(*)') ? $count : $articles;
             },
         );
 
@@ -175,7 +170,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Globalni view nezmeni edit_own na pravo upravit cizi radek
+     * Verifies that global view does not broaden owner-scoped edit actions
      */
     public function testRowActionsRespectOwnerWithGlobalViewAndOwnEdit(): void
     {
@@ -194,7 +189,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Vytvori News grid nad DB-free projekci jedne zvolene lokalizace
+     * Creates the real News grid over deterministic database doubles
      *
      * @param list<array<string,mixed>> $articles
      * @param list<string> $permissions
@@ -207,19 +202,20 @@ final class NewsDataGridTest extends TestCase
         $articleResult->method('result_array')->willReturn($articles);
         $fileResult = self::createStub(DatabaseResultInterface::class);
         $fileResult->method('result_array')->willReturn([]);
-        $results = [$count, $articleResult, $fileResult];
         $driver = self::createStub(DatabaseDriverInterface::class);
         $driver->method('protect_identifiers')->willReturnCallback(
             static fn(string $identifier): string => $identifier,
         );
         $driver->method('query')->willReturnCallback(
-            static function () use (&$results): DatabaseResultInterface {
-                $result = array_shift($results);
-                if (!$result instanceof DatabaseResultInterface) {
-                    throw new \LogicException('Unexpected NewsDataGrid query.');
+            static function (string $sql) use ($count, $articleResult, $fileResult): DatabaseResultInterface {
+                if (str_contains($sql, 'COUNT(*)')) {
+                    return $count;
+                }
+                if (str_contains($sql, 'system_file')) {
+                    return $fileResult;
                 }
 
-                return $result;
+                return $articleResult;
             },
         );
         $connection = self::createStub(ConnectionInterface::class);
@@ -291,7 +287,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Vytvori explicitni DataGrid dotaz pro content locale
+     * Creates an explicit DataGrid query for one content locale
      */
     private function query(string $locale, string $status = 'active'): DataGridQuery
     {
@@ -306,7 +302,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Vytvori lokalizovany News radek pro DB-free DataGrid scenar
+     * Creates one localized News row for a DB-free projection scenario
      *
      * @return array<string,mixed>
      */
@@ -331,7 +327,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Vrati textovou hodnotu serializovane typed bunky
+     * Returns the text value of a serialized typed cell
      *
      * @param array<string,mixed> $row
      */
@@ -351,7 +347,7 @@ final class NewsDataGridTest extends TestCase
     }
 
     /**
-     * Vrati dva textove radky serializovane stacked bunky
+     * Returns both text lines of a serialized stacked cell
      *
      * @param array<string,mixed> $row
      * @return array{value:string,secondary:string}

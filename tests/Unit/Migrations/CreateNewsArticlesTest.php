@@ -15,7 +15,7 @@ use Lemonade\Framework\Database\Schema\SchemaCompiler;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje ownership sloupce v puvodnim fresh-install schema News
+ * Verifies ownership columns and constraints in the fresh News schema
  */
 final class CreateNewsArticlesTest extends TestCase
 {

@@ -4,66 +4,45 @@ declare(strict_types=1);
 
 namespace Lemonade\Cms\News;
 
-use Lemonade\Admin\Authorization\AuthorizationService;
-use Lemonade\Admin\Cms\Content\CmsAdminRuntime;
 use Lemonade\Admin\Cms\Content\CmsContentAdminProvider;
-use Lemonade\Admin\Identity\LocalActorGuard;
-use Lemonade\Admin\Localization\LanguageRegistry;
-use Lemonade\Admin\Module\AdminModuleRouteResolver;
 use Lemonade\Cms\Content\CmsContentDefinition;
-use Lemonade\Cms\Content\CmsContentLifecycle;
-use Lemonade\Cms\Content\CmsDomainMapping;
-use Lemonade\Cms\Content\Models\CmsContentModel;
-use Lemonade\Cms\News\DataGrid\NewsDataGrid;
 use Lemonade\Cms\News\Editor\NewsEditor;
-use Lemonade\Cms\News\Editor\NewsEditorValidationSchema;
 use Lemonade\Cms\News\Public\PublishedNewsReadModel;
-use Lemonade\Cms\Routing\Cms\CmsRouteReservationService;
 use Lemonade\Framework\Container\ContainerBuilderInterface;
 use Lemonade\Framework\Container\ContainerInterface;
 use Lemonade\Framework\Core\BootableServiceProviderInterface;
 use Lemonade\Framework\Core\ServiceProviderInterface;
-use Lemonade\Framework\Database\Database;
-use Lemonade\Framework\Localization\TranslatorInterface;
-use Lemonade\Framework\Routing\UrlGenerator;
-use Lemonade\Framework\Support\Slug\Slugger;
 
 /**
  * Connects News to the shared CMS Admin transport and public reader
  */
 final readonly class CmsNewsServiceProvider implements ServiceProviderInterface, BootableServiceProviderInterface
 {
+    private CmsNewsServiceFactory $services;
+
+    private CmsContentAdminProvider $admin;
+
+    /**
+     * Prepares cohesive service construction without resolving runtime dependencies
+     */
+    public function __construct()
+    {
+        $this->services = new CmsNewsServiceFactory();
+        $this->admin = $this->services->makeAdminProvider();
+    }
+
     /**
      * Registers News services before the container is frozen
      */
     public function register(ContainerBuilderInterface $container): void
     {
         $container->scoped(PublishedNewsReadModel::class, PublishedNewsReadModel::class);
-        $container->scoped('cms.news.definition', static fn(): CmsContentDefinition => self::contentDefinition());
-        $container->scoped('cms.news.content_model', static fn(ContainerInterface $container): CmsContentModel => new CmsContentModel(
-            $container->get(Database::class),
-            $container->get('cms.news.definition'),
-        ));
-        $container->scoped('cms.news.lifecycle', static fn(ContainerInterface $container): CmsContentLifecycle => new CmsContentLifecycle(
-            $container->get('cms.news.definition'),
-            $container->get('cms.news.content_model'),
-            new CmsDomainMapping(NewsData::class),
-            $container->get(CmsRouteReservationService::class),
-            $container->get(Slugger::class),
-            $container->get(CmsAdminRuntime::class),
-        ));
-        $container->scoped(NewsEditor::class, static fn(ContainerInterface $container): NewsEditor => new NewsEditor(
-            $container->get('cms.news.read'),
-            $container->get('cms.news.lifecycle'),
-            $container->get(LanguageRegistry::class),
-            $container->get(LocalActorGuard::class),
-            $container->get(NewsEditorValidationSchema::class),
-            $container->get(AdminModuleRouteResolver::class),
-            $container->get(UrlGenerator::class),
-            $container->get(AuthorizationService::class),
-            $container->get(TranslatorInterface::class),
-        ));
-        self::adminProvider()->register($container);
+        $container->scoped('cms.news.definition', $this->services->makeContentDefinition(...));
+        $container->scoped('cms.news.content_model', $this->services->makeContentModel(...));
+        $container->scoped('cms.news.lifecycle', $this->services->makeLifecycle(...));
+        $container->scoped(NewsEditor::class, $this->services->makeEditor(...));
+
+        $this->admin->register($container);
     }
 
     /**
@@ -71,17 +50,7 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
      */
     public static function contentDefinition(): CmsContentDefinition
     {
-        return new CmsContentDefinition(
-            moduleCode: ModuleManifest::CODE,
-            entityType: 'cms_news_article',
-            rootTable: 'cms_news_article',
-            translationTable: 'cms_news_article_translation',
-            translationForeignKey: 'article_id',
-            tagTable: 'cms_news_article_translation_tag',
-            translationUniqueConstraint: 'uq_cms_news_article_translation_locale',
-            validationPrefix: 'news',
-            dataClass: NewsData::class,
-        );
+        return (new CmsNewsServiceFactory())->makeContentDefinition();
     }
 
     /**
@@ -89,7 +58,7 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
      */
     public function boot(ContainerInterface $container): void
     {
-        self::adminProvider()->boot($container);
+        $this->admin->boot($container);
     }
 
     /**
@@ -97,15 +66,6 @@ final readonly class CmsNewsServiceProvider implements ServiceProviderInterface,
      */
     public static function adminProvider(): CmsContentAdminProvider
     {
-        return new CmsContentAdminProvider(
-            moduleCode: ModuleManifest::CODE,
-            translationGroup: 'news',
-            translationPath: __DIR__ . '/Resources/lang',
-            dataGridService: NewsDataGrid::class,
-            pageService: NewsModulePageProvider::class,
-            editorService: NewsEditor::class,
-            lifecycleService: 'cms.news.lifecycle',
-            contentDefinitionService: 'cms.news.definition',
-        );
+        return (new CmsNewsServiceFactory())->makeAdminProvider();
     }
 }

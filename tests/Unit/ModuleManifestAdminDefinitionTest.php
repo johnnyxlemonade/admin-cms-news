@@ -15,12 +15,12 @@ use Lemonade\Cms\News\ModuleManifest;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Overuje stabilni Admin identitu a oddelene publish opravneni modulu
+ * Verifies stable Admin identity, permissions, audit and navigation metadata
  */
 final class ModuleManifestAdminDefinitionTest extends TestCase
 {
     /**
-     * Publish pravo nezavisi na edit opravneni a modul ma canonical segment
+     * Verifies independent publication permission and canonical Admin metadata
      */
     public function testDefinesIndependentPublishPermissionAndCanonicalAdminSegment(): void
     {
@@ -38,7 +38,7 @@ final class ModuleManifestAdminDefinitionTest extends TestCase
     }
 
     /**
-     * Popis modulu je dostupny pro oba podporovane jazyky
+     * Verifies the module description in both supported locales
      */
     public function testDefinesLocalizedModuleDescription(): void
     {
@@ -51,7 +51,7 @@ final class ModuleManifestAdminDefinitionTest extends TestCase
     }
 
     /**
-     * Auditni udalosti News zustavaji registrovane pod canonical module kodem
+     * Verifies presentations for every emitted News audit event
      */
     public function testItDeclaresAndRegistersPresentationsForAllEmittedNewsEvents(): void
     {
@@ -84,9 +84,9 @@ final class ModuleManifestAdminDefinitionTest extends TestCase
     }
 
     /**
-     * Standardni News lifecycle zachovava aktivni polozku z resolved group a segmentu
+     * Verifies navigation activity against resolved News metadata
      */
-    public function testItKeepsNewsNavigationActiveAcrossTheStandardLifecycle(): void
+    public function testNavigationItemMatchesResolvedNewsMetadata(): void
     {
         $definition = new ModuleManifest();
         $registry = new AdminModuleRegistry(new AdminNavigationGroupRegistry());
@@ -107,11 +107,6 @@ final class ModuleManifestAdminDefinitionTest extends TestCase
             moduleRouteSegment: $metadata->routeSegment(),
         );
 
-        foreach (['index', 'create', 'edit'] as $lifecycleAction) {
-            self::assertTrue(
-                $item->isActiveFor($metadata),
-                sprintf('%s must keep cms.news active.', $lifecycleAction),
-            );
-        }
+        self::assertTrue($item->isActiveFor($metadata));
     }
 }
